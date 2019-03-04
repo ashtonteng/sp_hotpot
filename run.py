@@ -30,15 +30,16 @@ def create_exp_dir(path, scripts_to_save=None):
             dst_file = os.path.join(path, 'scripts', os.path.basename(script))
             shutil.copyfile(script, dst_file)
 
-nll_sum = nn.CrossEntropyLoss(size_average=False, ignore_index=IGNORE_INDEX)
-nll_average = nn.CrossEntropyLoss(size_average=True, ignore_index=IGNORE_INDEX)
-nll_all = nn.CrossEntropyLoss(reduce=False, ignore_index=IGNORE_INDEX)
+nll_sum = nn.CrossEntropyLoss(reduction='sum', ignore_index=IGNORE_INDEX)
+nll_average = nn.CrossEntropyLoss(reduction='mean', ignore_index=IGNORE_INDEX)
+nll_all = nn.CrossEntropyLoss(reduction='none', ignore_index=IGNORE_INDEX)
 
 def train(config):
     with open(config.word_emb_file, "r") as fh:
         word_mat = np.array(json.load(fh), dtype=np.float32)
     with open(config.char_emb_file, "r") as fh:
         char_mat = np.array(json.load(fh), dtype=np.float32)
+
     with open(config.dev_eval_file, "r") as fh:
         dev_eval_file = json.load(fh)
     with open(config.idx2word_file, 'r') as fh:
@@ -47,7 +48,8 @@ def train(config):
     random.seed(config.seed)
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
-    torch.cuda.manual_seed_all(config.seed)
+    if config.cuda:
+        torch.cuda.manual_seed_all(config.seed)
 
     config.save = '{}-{}'.format(config.save, time.strftime("%Y%m%d-%H%M%S"))
     create_exp_dir(config.save, scripts_to_save=['run.py', 'model.py', 'util.py', 'sp_model.py'])
@@ -67,10 +69,10 @@ def train(config):
     dev_buckets = get_buckets(config.dev_record_file)
 
     def build_train_iterator():
-        return DataIterator(train_buckets, config.batch_size, config.para_limit, config.ques_limit, config.char_limit, True, config.sent_limit)
+        return DataIterator(config.cuda, train_buckets, config.batch_size, config.para_limit, config.ques_limit, config.char_limit, True, config.sent_limit)
 
     def build_dev_iterator():
-        return DataIterator(dev_buckets, config.batch_size, config.para_limit, config.ques_limit, config.char_limit, False, config.sent_limit)
+        return DataIterator(config.cuda, dev_buckets, config.batch_size, config.para_limit, config.ques_limit, config.char_limit, False, config.sent_limit)
 
     if config.sp_lambda > 0:
         model = SPModel(config, word_mat, char_mat)
@@ -78,8 +80,10 @@ def train(config):
         model = Model(config, word_mat, char_mat)
 
     logging('nparams {}'.format(sum([p.nelement() for p in model.parameters() if p.requires_grad])))
-    ori_model = model.cuda()
-    model = nn.DataParallel(ori_model)
+
+    if config.cuda:
+        ori_model = model.cuda()
+        model = nn.DataParallel(ori_model)
 
     lr = config.init_lr
     optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=config.init_lr)
@@ -107,10 +111,13 @@ def train(config):
             end_mapping = Variable(data['end_mapping'])
             all_mapping = Variable(data['all_mapping'])
 
-            logit1, logit2, predict_type, predict_support = model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens, start_mapping, end_mapping, all_mapping, return_yp=False)
-            loss_1 = (nll_sum(predict_type, q_type) + nll_sum(logit1, y1) + nll_sum(logit2, y2)) / context_idxs.size(0)
-            loss_2 = nll_average(predict_support.view(-1, 2), is_support.view(-1))
-            loss = loss_1 + config.sp_lambda * loss_2
+            predict_support = model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens,
+                                    start_mapping, end_mapping, all_mapping, return_yp=False)
+            # logit1, logit2, predict_type, predict_support = model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens, start_mapping, end_mapping, all_mapping, return_yp=False)
+            # loss_1 = (nll_sum(predict_type, q_type) + nll_sum(logit1, y1) + nll_sum(logit2, y2)) / context_idxs.size(0)
+            # loss_2 = nll_average(predict_support.view(-1, 2), is_support.view(-1))
+            # loss = loss_1 + config.sp_lambda * loss_2
+            loss = nll_average(predict_support.view(-1, 2), is_support.view(-1))
 
             optimizer.zero_grad()
             loss.backward()
@@ -239,7 +246,8 @@ def test(config):
     random.seed(config.seed)
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
-    torch.cuda.manual_seed_all(config.seed)
+    if config.cuda:
+        torch.cuda.manual_seed_all(config.seed)
 
     def logging(s, print_=True, log_=True):
         if print_:
@@ -258,17 +266,18 @@ def test(config):
         dev_buckets = get_buckets(config.test_record_file)
 
     def build_dev_iterator():
-        return DataIterator(dev_buckets, config.batch_size, para_limit,
+        return DataIterator(config.cuda, dev_buckets, config.batch_size, para_limit,
             ques_limit, config.char_limit, False, config.sent_limit)
 
     if config.sp_lambda > 0:
         model = SPModel(config, word_mat, char_mat)
     else:
         model = Model(config, word_mat, char_mat)
-    ori_model = model.cuda()
-    ori_model.load_state_dict(torch.load(os.path.join(config.save, 'model.pt')))
-    model = nn.DataParallel(ori_model)
+    if config.cuda:
+        ori_model = model.cuda()
+        model = nn.DataParallel(ori_model)
 
+    model.load_state_dict(torch.load(os.path.join(config.save, 'model.pt')))
     model.eval()
     predict(build_dev_iterator(), model, dev_eval_file, config, config.prediction_file)
 

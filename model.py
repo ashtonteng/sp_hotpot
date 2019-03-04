@@ -100,27 +100,29 @@ class Model(nn.Module):
         sp_output_aux = Variable(sp_output.data.new(sp_output.size(0), sp_output.size(1), 1).zero_())
         predict_support = torch.cat([sp_output_aux, sp_output], dim=-1).contiguous()
 
-        sp_output = torch.matmul(all_mapping, sp_output)
-        output = torch.cat([output, sp_output], dim=-1)
+        return predict_support
 
-        output_start = self.rnn_start(output, context_lens)
-        logit1 = self.linear_start(output_start).squeeze(2) - 1e30 * (1 - context_mask)
-        output_end = torch.cat([output, output_start], dim=2)
-        output_end = self.rnn_end(output_end, context_lens)
-        logit2 = self.linear_end(output_end).squeeze(2) - 1e30 * (1 - context_mask)
+        # sp_output = torch.matmul(all_mapping, sp_output)
+        # output = torch.cat([output, sp_output], dim=-1)
 
-        output_type = torch.cat([output, output_end], dim=2)
-        output_type = torch.max(self.rnn_type(output_type, context_lens), 1)[0]
-        predict_type = self.linear_type(output_type)
+        # output_start = self.rnn_start(output, context_lens)
+        # logit1 = self.linear_start(output_start).squeeze(2) - 1e30 * (1 - context_mask)
+        # output_end = torch.cat([output, output_start], dim=2)
+        # output_end = self.rnn_end(output_end, context_lens)
+        # logit2 = self.linear_end(output_end).squeeze(2) - 1e30 * (1 - context_mask)
 
-        if not return_yp: return logit1, logit2, predict_type, predict_support
+        # output_type = torch.cat([output, output_end], dim=2)
+        # output_type = torch.max(self.rnn_type(output_type, context_lens), 1)[0]
+        # predict_type = self.linear_type(output_type)
 
-        outer = logit1[:,:,None] + logit2[:,None]
-        outer_mask = self.get_output_mask(outer)
-        outer = outer - 1e30 * (1 - outer_mask[None].expand_as(outer))
-        yp1 = outer.max(dim=2)[0].max(dim=1)[1]
-        yp2 = outer.max(dim=1)[0].max(dim=1)[1]
-        return logit1, logit2, predict_type, predict_support, yp1, yp2
+        # if not return_yp: return logit1, logit2, predict_type, predict_support
+        #
+        # outer = logit1[:,:,None] + logit2[:,None]
+        # outer_mask = self.get_output_mask(outer)
+        # outer = outer - 1e30 * (1 - outer_mask[None].expand_as(outer))
+        # yp1 = outer.max(dim=2)[0].max(dim=1)[1]
+        # yp2 = outer.max(dim=1)[0].max(dim=1)[1]
+        # return logit1, logit2, predict_type, predict_support, yp1, yp2
 
 class LockedDropout(nn.Module):
     def __init__(self, dropout):
