@@ -174,15 +174,16 @@ def convert_tokens(eval_file, qa_id, pp1, pp2, p_type):
             assert False
     return answer_dict
 
-def evaluate(eval_file, answer_dict):
+def evaluate(eval_file, answer_dict):  # FIX!
+    # eval_file: {id: dict_keys(['context', 'spans', 'answer', 'id', 'sent2title_ids'])}
     f1 = exact_match = total = 0
     for key, value in answer_dict.items():
         total += 1
-        ground_truths = eval_file[key]["answer"]
+        ground_truths = eval_file[key]["sent2title_ids"]
         prediction = value
-        assert len(ground_truths) == 1
-        cur_EM = exact_match_score(prediction, ground_truths[0])
-        cur_f1, _, _ = f1_score(prediction, ground_truths[0])
+        # assert len(ground_truths) == 1
+        cur_EM = exact_match_score(prediction, ground_truths)
+        cur_f1, _, _ = f1_score(prediction, ground_truths)
         exact_match += cur_EM
         f1 += cur_f1
 
@@ -266,18 +267,22 @@ def normalize_answer(s):
 
 
 def f1_score(prediction, ground_truth):
-    normalized_prediction = normalize_answer(prediction)
-    normalized_ground_truth = normalize_answer(ground_truth)
+    # normalized_prediction = normalize_answer(prediction)
+    # normalized_ground_truth = normalize_answer(ground_truth)
 
     ZERO_METRIC = (0, 0, 0)
+    #
+    # if normalized_prediction in ['yes', 'no', 'noanswer'] and normalized_prediction != normalized_ground_truth:
+    #     return ZERO_METRIC
+    # if normalized_ground_truth in ['yes', 'no', 'noanswer'] and normalized_prediction != normalized_ground_truth:
+    #     return ZERO_METRIC
 
-    if normalized_prediction in ['yes', 'no', 'noanswer'] and normalized_prediction != normalized_ground_truth:
-        return ZERO_METRIC
-    if normalized_ground_truth in ['yes', 'no', 'noanswer'] and normalized_prediction != normalized_ground_truth:
-        return ZERO_METRIC
+    # prediction_tokens = normalized_prediction.split()
+    # ground_truth_tokens = normalized_ground_truth.split()
+    prediction_tokens = [tuple(sp) for sp in prediction]
+    ground_truth_tokens = [tuple(sp) for sp in ground_truth]
+    # prediction_tokens, ground_truth_tokens = prediction, ground_truth
 
-    prediction_tokens = normalized_prediction.split()
-    ground_truth_tokens = normalized_ground_truth.split()
     common = Counter(prediction_tokens) & Counter(ground_truth_tokens)
     num_same = sum(common.values())
     if num_same == 0:
@@ -289,7 +294,8 @@ def f1_score(prediction, ground_truth):
 
 
 def exact_match_score(prediction, ground_truth):
-    return (normalize_answer(prediction) == normalize_answer(ground_truth))
+    return prediction == ground_truth
+    # return (normalize_answer(prediction) == normalize_answer(ground_truth))
 
 
 def metric_max_over_ground_truths(metric_fn, prediction, ground_truths):

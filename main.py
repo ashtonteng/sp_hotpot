@@ -7,18 +7,20 @@ parser = argparse.ArgumentParser()
 
 glove_word_file = "glove.840B.300d.txt"
 
-word_emb_file = "word_emb.json"
-char_emb_file = "char_emb.json"
-train_eval = "train_eval.json"
-dev_eval = "dev_eval.json"
-test_eval = "test_eval.json"
-word2idx_file = "word2idx.json"
-char2idx_file = "char2idx.json"
-idx2word_file = 'idx2word.json'
-idx2char_file = 'idx2char.json'
-train_record_file = 'train_record.pkl'
-dev_record_file = 'dev_record.pkl'
-test_record_file = 'test_record.pkl'
+fp = "full_data"
+
+word_emb_file = os.path.join(fp, "word_emb.json")
+char_emb_file = os.path.join(fp, "char_emb.json")
+train_eval = os.path.join(fp, "train_eval.json")
+dev_eval = os.path.join(fp, "dev_eval.json")
+test_eval = os.path.join(fp, "test_eval.json")
+word2idx_file = os.path.join(fp, "word2idx.json")
+char2idx_file = os.path.join(fp, "char2idx.json")
+idx2word_file = os.path.join(fp, 'idx2word.json')
+idx2char_file = os.path.join(fp, 'idx2char.json')
+train_record_file = os.path.join(fp, 'train_record.pkl')
+dev_record_file = os.path.join(fp, 'dev_record.pkl')
+test_record_file = os.path.join(fp, 'test_record.pkl')
 
 parser.add_argument('--cuda', type=bool, default=False)
 

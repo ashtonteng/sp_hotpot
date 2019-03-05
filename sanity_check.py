@@ -43,10 +43,6 @@ def check_compile(config):
         context_char_idxs = Variable(data['context_char_idxs'])
         ques_char_idxs = Variable(data['ques_char_idxs'])
         context_lens = Variable(data['context_lens'])
-        y1 = Variable(data['y1'])
-        y2 = Variable(data['y2'])
-        q_type = Variable(data['q_type'])
-        is_support = Variable(data['is_support'])
         start_mapping = Variable(data['start_mapping'])
         end_mapping = Variable(data['end_mapping'])
         all_mapping = Variable(data['all_mapping'])
@@ -75,27 +71,21 @@ def check_compile(config):
 
 
 if __name__ == "__main__":
-    import os
-    from prepro import prepro
-    from run import train, test
     import argparse
-
     parser = argparse.ArgumentParser()
-
     glove_word_file = "glove.840B.300d.txt"
-
-    word_emb_file = "word_emb.json"
-    char_emb_file = "char_emb.json"
-    train_eval = "train_eval.json"
-    dev_eval = "dev_eval.json"
-    test_eval = "test_eval.json"
-    word2idx_file = "word2idx.json"
-    char2idx_file = "char2idx.json"
-    idx2word_file = 'idx2word.json'
-    idx2char_file = 'idx2char.json'
-    train_record_file = 'train_record.pkl'
-    dev_record_file = 'dev_record.pkl'
-    test_record_file = 'test_record.pkl'
+    word_emb_file = "sanity/word_emb.json"
+    char_emb_file = "sanity/char_emb.json"
+    train_eval = "sanity/train_eval.json"
+    dev_eval = "sanity/dev_eval.json"
+    test_eval = "sanity/test_eval.json"
+    word2idx_file = "sanity/word2idx.json"
+    char2idx_file = "sanity/char2idx.json"
+    idx2word_file = 'sanity/idx2word.json'
+    idx2char_file = 'sanity/idx2char.json'
+    train_record_file = 'sanity/train_record.pkl'
+    dev_record_file = 'sanity/dev_record.pkl'
+    test_record_file = 'sanity/test_record.pkl'
 
     parser.add_argument('--cuda', type=bool, default=False)
 
@@ -129,8 +119,8 @@ if __name__ == "__main__":
     parser.add_argument('--char_limit', type=int, default=16)
 
     parser.add_argument('--batch_size', type=int, default=1)
-    parser.add_argument('--checkpoint', type=int, default=1000)
-    parser.add_argument('--period', type=int, default=100)
+    parser.add_argument('--checkpoint', type=int, default=10)
+    parser.add_argument('--period', type=int, default=10)
     parser.add_argument('--init_lr', type=float, default=0.5)
     parser.add_argument('--keep_prob', type=float, default=0.8)
     parser.add_argument('--hidden', type=int, default=80)
