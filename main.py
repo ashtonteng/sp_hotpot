@@ -11,14 +11,14 @@ fp = "full_data"
 
 word_emb_file = os.path.join(fp, "word_emb.json")
 char_emb_file = os.path.join(fp, "char_emb.json")
-train_eval = os.path.join(fp, "train_eval.json")
+train_eval = os.path.join(fp, "dev_eval.json")
 dev_eval = os.path.join(fp, "dev_eval.json")
 test_eval = os.path.join(fp, "test_eval.json")
 word2idx_file = os.path.join(fp, "word2idx.json")
 char2idx_file = os.path.join(fp, "char2idx.json")
 idx2word_file = os.path.join(fp, 'idx2word.json')
 idx2char_file = os.path.join(fp, 'idx2char.json')
-train_record_file = os.path.join(fp, 'train_record.pkl')
+train_record_file = os.path.join(fp, 'dev_record.pkl')
 dev_record_file = os.path.join(fp, 'dev_record.pkl')
 test_record_file = os.path.join(fp, 'test_record.pkl')
 
