@@ -102,18 +102,18 @@ def train(config):
 
     for epoch in range(10000):
         for data in build_train_iterator():
-            context_idxs = Variable(data['context_idxs'])
-            ques_idxs = Variable(data['ques_idxs'])
-            context_char_idxs = Variable(data['context_char_idxs'])
-            ques_char_idxs = Variable(data['ques_char_idxs'])
-            context_lens = Variable(data['context_lens'])
+            context_idxs = Variable(data['context_idxs']).cuda()
+            ques_idxs = Variable(data['ques_idxs']).cuda()
+            context_char_idxs = Variable(data['context_char_idxs']).cuda()
+            ques_char_idxs = Variable(data['ques_char_idxs']).cuda()
+            context_lens = Variable(data['context_lens']).cuda()
             # y1 = Variable(data['y1'])
             # y2 = Variable(data['y2'])
             # q_type = Variable(data['q_type'])
-            is_support = Variable(data['is_support'])
-            start_mapping = Variable(data['start_mapping'])
-            end_mapping = Variable(data['end_mapping'])
-            all_mapping = Variable(data['all_mapping'])
+            is_support = Variable(data['is_support']).cuda()
+            start_mapping = Variable(data['start_mapping']).cuda()
+            end_mapping = Variable(data['end_mapping']).cuda()
+            all_mapping = Variable(data['all_mapping']).cuda()
 
             predict_support = model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens,
                                     start_mapping, end_mapping, all_mapping, return_yp=False)
