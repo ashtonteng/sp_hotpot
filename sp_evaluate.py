@@ -28,7 +28,9 @@ def f1_score(prediction, ground_truth):
 
 
 def exact_match_score(prediction, ground_truth):
-    return prediction == ground_truth
+    prediction_tokens = set([tuple(e) for e in prediction])
+    ground_truth_tokens = set([tuple(e) for e in ground_truth])
+    return prediction_tokens == ground_truth_tokens
 
 def update_answer(metrics, prediction, gold):
     em = exact_match_score(prediction, gold)
