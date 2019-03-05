@@ -26,22 +26,11 @@ def f1_score(prediction, ground_truth):
     f1 = (2 * precision * recall) / (precision + recall)
     return f1, precision, recall
 
-
-def exact_match_score(prediction, ground_truth):
-    prediction_tokens = set([tuple(e) for e in prediction])
-    ground_truth_tokens = set([tuple(e) for e in ground_truth])
-    return prediction_tokens == ground_truth_tokens
-
-def update_answer(metrics, prediction, gold):
-    em = exact_match_score(prediction, gold)
-    f1, prec, recall = f1_score(prediction, gold)
-    metrics['em'] += float(em)
-    metrics['f1'] += f1
-    metrics['prec'] += prec
-    metrics['recall'] += recall
-    return em, prec, recall
-
 def update_sp(metrics, prediction, gold):
+    print("!!!!!!!!!")
+    print(prediction)
+    print("-----")
+    print(gold)
     cur_sp_pred = set(map(tuple, prediction))
     gold_sp_pred = set(map(tuple, gold))
     tp, fp, fn = 0, 0, 0
