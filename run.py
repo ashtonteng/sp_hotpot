@@ -85,7 +85,7 @@ def train(config):
         print("im using my gpus!")
         ori_model = model.cuda()
         #model.to(device)
-        model = nn.DataParallel(ori_model, device_ids=[0, 1])
+        # model = nn.DataParallel(ori_model)
     else:
         ori_model = model
 
@@ -307,7 +307,8 @@ def test(config):
         ori_model = model.cuda()
         ori_model.load_state_dict(saved_weights)
         # model.to(device)
-        model = nn.DataParallel(ori_model)
+        # model = nn.DataParallel(ori_model)
+        model = ori_model
     else:
         model.load_state_dict(saved_weights)
     model.eval()
