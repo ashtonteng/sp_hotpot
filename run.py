@@ -18,6 +18,7 @@ from torch.autograd import Variable
 import sys
 from torch.nn import functional as F
 
+
 def create_exp_dir(path, scripts_to_save=None):
     if not os.path.exists(path):
         os.mkdir(path)
@@ -49,6 +50,8 @@ def train(config):
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
     if config.cuda:
+        torch.cuda.set_device(1)
+        device = torch.device("cuda", 1)
         torch.cuda.manual_seed_all(config.seed)
 
     config.save = '{}-{}'.format(config.save, time.strftime("%Y%m%d-%H%M%S"))
@@ -81,6 +84,7 @@ def train(config):
     if config.cuda:
         print("im using my gpus!")
         model = model.cuda()
+        model.to(device)
         # model = nn.DataParallel(ori_model)
 
     lr = config.init_lr
@@ -217,14 +221,14 @@ def predict(data_source, model, eval_file, config, prediction_file):
     sp_dict = {}
     sp_th = config.sp_threshold
     for step, data in enumerate(tqdm(data_source)):
-        context_idxs = Variable(data['context_idxs'], volatile=True)
-        ques_idxs = Variable(data['ques_idxs'], volatile=True)
-        context_char_idxs = Variable(data['context_char_idxs'], volatile=True)
-        ques_char_idxs = Variable(data['ques_char_idxs'], volatile=True)
-        context_lens = Variable(data['context_lens'], volatile=True)
-        start_mapping = Variable(data['start_mapping'], volatile=True)
-        end_mapping = Variable(data['end_mapping'], volatile=True)
-        all_mapping = Variable(data['all_mapping'], volatile=True)
+        context_idxs = Variable(data['context_idxs'])#, volatile=True)
+        ques_idxs = Variable(data['ques_idxs'])#, volatile=True)
+        context_char_idxs = Variable(data['context_char_idxs'])#, volatile=True)
+        ques_char_idxs = Variable(data['ques_char_idxs'])#, volatile=True)
+        context_lens = Variable(data['context_lens'])#, volatile=True)
+        start_mapping = Variable(data['start_mapping'])#, volatile=True)
+        end_mapping = Variable(data['end_mapping'])#, volatile=True)
+        all_mapping = Variable(data['all_mapping'])#, volatile=True)
 
         predict_support = model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens,
                                           start_mapping, end_mapping, all_mapping, return_yp=True)
@@ -293,7 +297,10 @@ def test(config):
         print("im using my gpus!")
         model = model.cuda()
         # model = nn.DataParallel(ori_model)
-
-    model.load_state_dict(torch.load(os.path.join(config.save, 'model.pt')))
+    if config.cuda:
+        saved_weights = torch.load(os.path.join(config.save, 'model.pt'))
+    else:
+        saved_weights = torch.load(os.path.join(config.save, 'model.pt'), map_location="cpu")
+    model.load_state_dict(saved_weights)
     model.eval()
     predict(build_dev_iterator(), model, dev_eval_file, config, config.prediction_file)
