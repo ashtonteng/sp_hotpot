@@ -79,9 +79,9 @@ def train(config):
     logging('nparams {}'.format(sum([p.nelement() for p in model.parameters() if p.requires_grad])))
 
     if config.cuda:
-        print("hiiiiiiiii!!!!!")
-        ori_model = model.cuda()
-        model = nn.DataParallel(ori_model)
+        print("im using my gpus!")
+        model = model.cuda()
+        # model = nn.DataParallel(ori_model)
 
     lr = config.init_lr
     optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=config.init_lr)
@@ -290,9 +290,9 @@ def test(config):
     model = SPModel(config, word_mat, char_mat)
 
     if config.cuda:
-        print("hiiiiiiiii")
-        ori_model = model.cuda()
-        model = nn.DataParallel(ori_model)
+        print("im using my gpus!")
+        model = model.cuda()
+        # model = nn.DataParallel(ori_model)
 
     model.load_state_dict(torch.load(os.path.join(config.save, 'model.pt')))
     model.eval()
