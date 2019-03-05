@@ -7,7 +7,7 @@ parser = argparse.ArgumentParser()
 
 glove_word_file = "glove.840B.300d.txt"
 
-fp = "full_data"
+fp = "sanity_data"
 
 word_emb_file = os.path.join(fp, "word_emb.json")
 char_emb_file = os.path.join(fp, "char_emb.json")

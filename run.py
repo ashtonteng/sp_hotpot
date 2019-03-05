@@ -50,8 +50,8 @@ def train(config):
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
     if config.cuda:
-        torch.cuda.set_device(1)
-        device = torch.device("cuda", 1)
+        torch.cuda.set_device(0)
+        device = torch.device("cuda", 0)
         torch.cuda.manual_seed_all(config.seed)
 
     config.save = '{}-{}'.format(config.save, time.strftime("%Y%m%d-%H%M%S"))
@@ -83,9 +83,11 @@ def train(config):
 
     if config.cuda:
         print("im using my gpus!")
-        model = model.cuda()
-        model.to(device)
-        # model = nn.DataParallel(ori_model)
+        ori_model = model.cuda()
+        #model.to(device)
+        model = nn.DataParallel(ori_model)
+    else:
+        ori_model = model
 
     lr = config.init_lr
     optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=config.init_lr)
@@ -150,7 +152,7 @@ def train(config):
                 dev_F1 = metrics['f1']
                 if best_dev_F1 is None or dev_F1 > best_dev_F1:
                     best_dev_F1 = dev_F1
-                    torch.save(model.state_dict(), os.path.join(config.save, 'model.pt'))
+                    torch.save(orimodel.state_dict(), os.path.join(config.save, 'model.pt'))
                     cur_patience = 0
                 else:
                     cur_patience += 1
@@ -295,8 +297,11 @@ def test(config):
 
     if config.cuda:
         print("im using my gpus!")
-        model = model.cuda()
-        # model = nn.DataParallel(ori_model)
+        ori_model = model.cuda()
+        # model.to(device)
+        model = nn.DataParallel(ori_model)
+    else:
+        ori_model = model
     if config.cuda:
         saved_weights = torch.load(os.path.join(config.save, 'model.pt'))
     else:
