@@ -50,8 +50,8 @@ def train(config):
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
     if config.cuda:
-        torch.cuda.set_device(0)
-        device = torch.device("cuda", 0)
+        # torch.cuda.set_device(0) when only one device, set device here
+        # device = torch.device("cuda", 0)
         torch.cuda.manual_seed_all(config.seed)
 
     config.save = '{}-{}'.format(config.save, time.strftime("%Y%m%d-%H%M%S"))
@@ -85,7 +85,7 @@ def train(config):
         print("im using my gpus!")
         ori_model = model.cuda()
         #model.to(device)
-        model = nn.DataParallel(ori_model)
+        model = nn.DataParallel(ori_model, device_ids=[0, 1])
     else:
         ori_model = model
 
@@ -152,7 +152,7 @@ def train(config):
                 dev_F1 = metrics['f1']
                 if best_dev_F1 is None or dev_F1 > best_dev_F1:
                     best_dev_F1 = dev_F1
-                    torch.save(orimodel.state_dict(), os.path.join(config.save, 'model.pt'))
+                    torch.save(ori_model.state_dict(), os.path.join(config.save, 'model.pt'))
                     cur_patience = 0
                 else:
                     cur_patience += 1
@@ -296,16 +296,17 @@ def test(config):
     model = SPModel(config, word_mat, char_mat)
 
     if config.cuda:
-        print("im using my gpus!")
-        ori_model = model.cuda()
-        # model.to(device)
-        model = nn.DataParallel(ori_model)
-    else:
-        ori_model = model
-    if config.cuda:
         saved_weights = torch.load(os.path.join(config.save, 'model.pt'))
     else:
         saved_weights = torch.load(os.path.join(config.save, 'model.pt'), map_location="cpu")
-    model.load_state_dict(saved_weights)
+
+    if config.cuda:
+        print("im using my gpus!")
+        ori_model = model.cuda()
+        ori_model.load_state_dict(saved_weights)
+        # model.to(device)
+        model = nn.DataParallel(ori_model)
+    else:
+        model.load_state_dict(saved_weights)
     model.eval()
     predict(build_dev_iterator(), model, dev_eval_file, config, config.prediction_file)
