@@ -79,6 +79,7 @@ def train(config):
     logging('nparams {}'.format(sum([p.nelement() for p in model.parameters() if p.requires_grad])))
 
     if config.cuda:
+        print("hiiiiiiiii!!!!!")
         ori_model = model.cuda()
         model = nn.DataParallel(ori_model)
 
@@ -289,6 +290,7 @@ def test(config):
     model = SPModel(config, word_mat, char_mat)
 
     if config.cuda:
+        print("hiiiiiiiii")
         ori_model = model.cuda()
         model = nn.DataParallel(ori_model)
 
