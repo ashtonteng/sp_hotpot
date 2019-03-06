@@ -139,6 +139,7 @@ def train(config):
 
             if global_step % config.checkpoint == 0:
                 model.eval()
+                torch.cuda.empty_cache()
                 metrics = evaluate_batch(build_dev_iterator(), model, 0, dev_eval_file, config)
                 model.train()
 

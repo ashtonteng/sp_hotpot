@@ -27,10 +27,6 @@ def f1_score(prediction, ground_truth):
     return f1, precision, recall
 
 def update_sp(metrics, prediction, gold):
-    print("!!!!!!!!!")
-    print(prediction)
-    print("-----")
-    print(gold)
     cur_sp_pred = set(map(tuple, prediction))
     gold_sp_pred = set(map(tuple, gold))
     tp, fp, fn = 0, 0, 0
