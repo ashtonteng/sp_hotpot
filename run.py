@@ -121,7 +121,7 @@ def train(config):
             # loss_1 = (nll_sum(predict_type, q_type) + nll_sum(logit1, y1) + nll_sum(logit2, y2)) / context_idxs.size(0)
             # loss_2 = nll_average(predict_support.view(-1, 2), is_support.view(-1))
             # loss = loss_1 + config.sp_lambda * loss_2
-            loss = nll_average(predict_support.view(-1, 2), is_support.view(-1))
+            loss = nll_sum(predict_support.view(-1, 2), is_support.view(-1))
 
             optimizer.zero_grad()
             loss.backward()
