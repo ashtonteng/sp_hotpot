@@ -50,8 +50,8 @@ def train(config):
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
     if config.cuda:
-        # torch.cuda.set_device(0) when only one device, set device here
-        # device = torch.device("cuda", 0)
+        # torch.cuda.set_device(1) # when only one device, set device here
+        # device = torch.device("cuda", 1)
         torch.cuda.manual_seed_all(config.seed)
 
     config.save = '{}-{}'.format(config.save, time.strftime("%Y%m%d-%H%M%S"))
@@ -193,7 +193,7 @@ def evaluate_batch(data_source, model, max_batches, eval_file, config):
         predict_support = model(context_idxs, ques_idxs, context_char_idxs,
                            ques_char_idxs, context_lens, start_mapping,
                            end_mapping, all_mapping, return_yp=True)
-        loss = nll_average(predict_support.view(-1, 2), is_support.view(-1))
+        loss = nll_sum(predict_support.view(-1, 2), is_support.view(-1))
 
         # logit1, logit2, predict_type, predict_support, yp1, yp2 = model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens, start_mapping, end_mapping, all_mapping, return_yp=True)
         # loss = (nll_sum(predict_type, q_type) + nll_sum(logit1, y1) + nll_sum(logit2, y2)) / context_idxs.size(0) + config.sp_lambda * nll_average(predict_support.view(-1, 2), is_support.view(-1))
