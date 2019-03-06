@@ -94,6 +94,7 @@ def _process_article(article, config):
     flat_offsets = []
     start_end_facts = [] # (start_token_id, end_token_id, is_sup_fact=True/False)
     sent2title_ids = []
+    sp_sent2title_ids = []
 
     def _process(sent, is_sup_fact, is_title=False):
         nonlocal text_context, context_tokens, context_chars, offsets, start_end_facts, flat_offsets
@@ -130,6 +131,7 @@ def _process_article(article, config):
         for sent_id, sent in enumerate(cur_para):
             is_sup_fact = (cur_title, sent_id) in sp_set
             if is_sup_fact:
+                sp_sent2title_ids.append((cur_title, sent_id)) # i added this
                 sp_fact_cnt += 1
             _process(prepro_sent(sent), is_sup_fact)
             sent2title_ids.append((cur_title, sent_id))
@@ -162,7 +164,7 @@ def _process_article(article, config):
 
     example = {'context_tokens': context_tokens,'context_chars': context_chars, 'ques_tokens': ques_tokens, 'ques_chars': ques_chars, 'y1s': [best_indices[0]], 'y2s': [best_indices[1]], 'id': article['_id'], 'start_end_facts': start_end_facts}
     eval_example = {'context': text_context, 'spans': flat_offsets, 'answer': [answer], 'id': article['_id'],
-            'sent2title_ids': sent2title_ids}
+            'sent2title_ids': sent2title_ids, 'sp_sent2title_ids': sp_sent2title_ids}
     return example, eval_example
 
 def process_file(filename, config, word_counter=None, char_counter=None):

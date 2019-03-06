@@ -102,70 +102,68 @@ def train(config):
 
     for epoch in range(10000):
         for data in build_train_iterator():
-            with torch.set_grad_enabled(True):
-                context_idxs = data['context_idxs']
-                print(context_idxs.requires_grad)
-                ques_idxs = data['ques_idxs']
-                context_char_idxs = data['context_char_idxs']
-                ques_char_idxs = data['ques_char_idxs']
-                context_lens = data['context_lens']
-                # y1 = Variable(data['y1'])
-                # y2 = Variable(data['y2'])
-                # q_type = Variable(data['q_type'])
-                is_support = data['is_support']
-                start_mapping = data['start_mapping']
-                end_mapping = data['end_mapping']
-                all_mapping = data['all_mapping']
+            context_idxs = data['context_idxs']
+            ques_idxs = data['ques_idxs']
+            context_char_idxs = data['context_char_idxs']
+            ques_char_idxs = data['ques_char_idxs']
+            context_lens = data['context_lens']
+            # y1 = Variable(data['y1'])
+            # y2 = Variable(data['y2'])
+            # q_type = Variable(data['q_type'])
+            is_support = data['is_support']
+            start_mapping = data['start_mapping']
+            end_mapping = data['end_mapping']
+            all_mapping = data['all_mapping']
 
-                predict_support = model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens,
-                                        start_mapping, end_mapping, all_mapping, return_yp=False)
-                # logit1, logit2, predict_type, predict_support = model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens, start_mapping, end_mapping, all_mapping, return_yp=False)
-                # loss_1 = (nll_sum(predict_type, q_type) + nll_sum(logit1, y1) + nll_sum(logit2, y2)) / context_idxs.size(0)
-                # loss_2 = nll_average(predict_support.view(-1, 2), is_support.view(-1))
-                # loss = loss_1 + config.sp_lambda * loss_2
-                loss = nll_average(predict_support.view(-1, 2), is_support.view(-1))
+            predict_support = model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens,
+                                    start_mapping, end_mapping, all_mapping, return_yp=False)
+            # logit1, logit2, predict_type, predict_support = model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens, start_mapping, end_mapping, all_mapping, return_yp=False)
+            # loss_1 = (nll_sum(predict_type, q_type) + nll_sum(logit1, y1) + nll_sum(logit2, y2)) / context_idxs.size(0)
+            # loss_2 = nll_average(predict_support.view(-1, 2), is_support.view(-1))
+            # loss = loss_1 + config.sp_lambda * loss_2
+            loss = nll_average(predict_support.view(-1, 2), is_support.view(-1))
 
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-                total_loss += loss.item()
-                global_step += 1
+            total_loss += loss.item()
+            global_step += 1
 
-                if global_step % config.period == 0:
-                    cur_loss = total_loss / config.period
-                    elapsed = time.time() - start_time
-                    logging('| epoch {:3d} | step {:6d} | lr {:05.5f} | ms/batch {:5.2f} | train loss {:8.3f}'.format(epoch, global_step, lr, elapsed*1000/config.period, cur_loss))
-                    total_loss = 0
-                    start_time = time.time()
+            if global_step % config.period == 0:
+                cur_loss = total_loss / config.period
+                elapsed = time.time() - start_time
+                logging('| epoch {:3d} | step {:6d} | lr {:05.5f} | ms/batch {:5.2f} | train loss {:8.3f}'.format(epoch, global_step, lr, elapsed*1000/config.period, cur_loss))
+                total_loss = 0
+                start_time = time.time()
 
-                if global_step % config.checkpoint == 0:
-                    model.eval()
-                    metrics = evaluate_batch(build_dev_iterator(), model, 0, dev_eval_file, config)
-                    model.train()
+            if global_step % config.checkpoint == 0:
+                model.eval()
+                metrics = evaluate_batch(build_dev_iterator(), model, 0, dev_eval_file, config)
+                model.train()
 
-                    logging('-' * 89)
-                    logging('| eval {:6d} in epoch {:3d} | time: {:5.2f}s | dev loss {:8.3f} | EM {:.4f} | F1 {:.4f}'.format(global_step//config.checkpoint,
-                        epoch, time.time()-eval_start_time, metrics['loss'], metrics['exact_match'], metrics['f1']))
-                    logging('-' * 89)
+                logging('-' * 89)
+                logging('| eval {:6d} in epoch {:3d} | time: {:5.2f}s | dev loss {:8.3f} | EM {:.4f} | F1 {:.4f} | Precision {:.4f} | Recall {:.4f}'.format(global_step//config.checkpoint,
+                    epoch, time.time()-eval_start_time, metrics['loss'], metrics['em'], metrics['f1'], metrics['prec'], metrics['recall']))
+                logging('-' * 89)
 
-                    eval_start_time = time.time()
+                eval_start_time = time.time()
 
-                    dev_F1 = metrics['f1']
-                    if best_dev_F1 is None or dev_F1 > best_dev_F1:
-                        best_dev_F1 = dev_F1
-                        torch.save(ori_model.state_dict(), os.path.join(config.save, 'model.pt'))
+                dev_F1 = metrics['f1']
+                if best_dev_F1 is None or dev_F1 > best_dev_F1:
+                    best_dev_F1 = dev_F1
+                    torch.save(ori_model.state_dict(), os.path.join(config.save, 'model.pt'))
+                    cur_patience = 0
+                else:
+                    cur_patience += 1
+                    if cur_patience >= config.patience:
+                        lr /= 2.0
+                        for param_group in optimizer.param_groups:
+                            param_group['lr'] = lr
+                        if lr < config.init_lr * 1e-2:
+                            stop_train = True
+                            break
                         cur_patience = 0
-                    else:
-                        cur_patience += 1
-                        if cur_patience >= config.patience:
-                            lr /= 2.0
-                            for param_group in optimizer.param_groups:
-                                param_group['lr'] = lr
-                            if lr < config.init_lr * 1e-2:
-                                stop_train = True
-                                break
-                            cur_patience = 0
         if stop_train: break
     logging('best_dev_F1 {}'.format(best_dev_F1))
 

@@ -175,22 +175,26 @@ def convert_tokens(eval_file, qa_id, pp1, pp2, p_type):
     return answer_dict
 
 def evaluate(eval_file, answer_dict):  # FIX!
-    # eval_file: {id: dict_keys(['context', 'spans', 'answer', 'id', 'sent2title_ids'])}
-    f1 = exact_match = total = 0
+    # eval_file: {id: dict_keys(['context', 'spans', 'answer', 'id', 'sent2title_ids', 'sp_sent2title_ids])}
+    total = em_sum = f1_sum = prec_sum = recall_sum = 0
     for key, value in answer_dict.items():
         total += 1
-        ground_truths = eval_file[key]["sent2title_ids"]
+        ground_truths = eval_file[key]["sp_sent2title_ids"]
         prediction = value
-        # assert len(ground_truths) == 1
-        cur_EM = exact_match_score(prediction, ground_truths)
-        cur_f1, _, _ = f1_score(prediction, ground_truths)
-        exact_match += cur_EM
-        f1 += cur_f1
+        print("ground_truth:", ground_truths)
+        print("prediction:", prediction)
+        em, f1, prec, recall = get_f1_em_prec_recall(prediction, ground_truths)
+        em_sum += em
+        f1_sum += f1
+        prec_sum += prec
+        recall_sum += recall
 
-    exact_match = 100.0 * exact_match / total
-    f1 = 100.0 * f1 / total
+    em_percent = 100.0 * em_sum / total
+    f1_percent = 100.0 * f1_sum / total
+    prec_percent = 100.0 * prec_sum / total
+    recall_sum = 100.0 * prec_sum / total
 
-    return {'exact_match': exact_match, 'f1': f1}
+    return {'em': em_percent, 'f1': f1_percent, 'prec': prec_percent, 'recall': recall_sum}
 
 # def evaluate(eval_file, answer_dict, full_stats=False):
 #     if full_stats:
@@ -265,37 +269,23 @@ def normalize_answer(s):
 
     return white_space_fix(remove_articles(remove_punc(lower(s))))
 
-
-def f1_score(prediction, ground_truth):
-    # normalized_prediction = normalize_answer(prediction)
-    # normalized_ground_truth = normalize_answer(ground_truth)
-
-    ZERO_METRIC = (0, 0, 0)
-    #
-    # if normalized_prediction in ['yes', 'no', 'noanswer'] and normalized_prediction != normalized_ground_truth:
-    #     return ZERO_METRIC
-    # if normalized_ground_truth in ['yes', 'no', 'noanswer'] and normalized_prediction != normalized_ground_truth:
-    #     return ZERO_METRIC
-
-    # prediction_tokens = normalized_prediction.split()
-    # ground_truth_tokens = normalized_ground_truth.split()
-    prediction_tokens = [tuple(sp) for sp in prediction]
-    ground_truth_tokens = [tuple(sp) for sp in ground_truth]
-    # prediction_tokens, ground_truth_tokens = prediction, ground_truth
-
-    common = Counter(prediction_tokens) & Counter(ground_truth_tokens)
-    num_same = sum(common.values())
-    if num_same == 0:
-        return ZERO_METRIC
-    precision = 1.0 * num_same / len(prediction_tokens)
-    recall = 1.0 * num_same / len(ground_truth_tokens)
-    f1 = (2 * precision * recall) / (precision + recall)
-    return f1, precision, recall
-
-
-def exact_match_score(prediction, ground_truth):
-    return prediction == ground_truth
-    # return (normalize_answer(prediction) == normalize_answer(ground_truth))
+def get_f1_em_prec_recall(prediction, ground_truth):
+    cur_sp_pred = set(map(tuple, prediction))
+    gold_sp_pred = set(map(tuple, ground_truth))
+    tp, fp, fn = 0, 0, 0
+    for e in cur_sp_pred:
+        if e in gold_sp_pred:
+            tp += 1
+        else:
+            fp += 1
+    for e in gold_sp_pred:
+        if e not in cur_sp_pred:
+            fn += 1
+    prec = 1.0 * tp / (tp + fp) if tp + fp > 0 else 0.0
+    recall = 1.0 * tp / (tp + fn) if tp + fn > 0 else 0.0
+    f1 = 2 * prec * recall / (prec + recall) if prec + recall > 0 else 0.0
+    em = 1.0 if fp + fn == 0 else 0.0
+    return em, f1, prec, recall
 
 
 def metric_max_over_ground_truths(metric_fn, prediction, ground_truths):
