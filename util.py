@@ -181,8 +181,9 @@ def evaluate(eval_file, answer_dict):  # FIX!
         total += 1
         ground_truths = eval_file[key]["sp_sent2title_ids"]
         prediction = value
-        print("ground_truth:", ground_truths)
-        print("prediction:", prediction)
+        print("-------")
+        print("gold:", ground_truths)
+        print("pred:", prediction)
         em, f1, prec, recall = get_f1_em_prec_recall(prediction, ground_truths)
         em_sum += em
         f1_sum += f1
