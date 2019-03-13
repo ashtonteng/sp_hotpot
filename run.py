@@ -90,7 +90,7 @@ def train(config):
         ori_model = model
 
     lr = config.init_lr
-    optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=config.init_lr)
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=config.init_lr) # switch to Adam optimizer
     cur_patience = 0
     total_loss = 0
     global_step = 0
@@ -121,7 +121,7 @@ def train(config):
             # loss_1 = (nll_sum(predict_type, q_type) + nll_sum(logit1, y1) + nll_sum(logit2, y2)) / context_idxs.size(0)
             # loss_2 = nll_average(predict_support.view(-1, 2), is_support.view(-1))
             # loss = loss_1 + config.sp_lambda * loss_2
-            loss = nll_sum(predict_support.view(-1, 2), is_support.view(-1))
+            loss = nll_average(predict_support.view(-1, 2), is_support.view(-1))
 
             optimizer.zero_grad()
             loss.backward()
