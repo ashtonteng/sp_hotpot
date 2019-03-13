@@ -90,7 +90,7 @@ def train(config):
         ori_model = model
 
     lr = config.init_lr
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))#, lr=config.init_lr) # switch to Adam optimizer
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=config.init_lr)  # switch to Adam optimizer
     cur_patience = 0
     total_loss = 0
     global_step = 0
