@@ -1,3 +1,4 @@
+import operator
 import ujson as json
 import numpy as np
 from tqdm import tqdm
@@ -17,7 +18,7 @@ import torch
 from torch.autograd import Variable
 import sys
 from torch.nn import functional as F
-from pytorch_pretrained_bert.tokenization import BasicTokenizer
+from pytorch_pretrained_bert.tokenization import BertTokenizer
 import process_data
 from pytorch_pretrained_bert.modeling import BertForQuestionAnswering
 
@@ -228,13 +229,15 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
     sp_dict = {}
     sp_th = config.sp_threshold
 
-    tokenizer = BasicTokenizer(do_lower_case=True)
-
+    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", do_lower_case=True)
+    print(tokenizer)
     hotpot_dict = process_data.hotpot_to_dict(config.hotpot_file)
-
+    device2 = torch.device("cuda", 1)
     answer_dict = {}
 
-    for step, data in enumerate(tqdm(data_source)):
+    for step, data in enumerate(tqdm(data_source, desc="Iteration")):
+        if step > 0 and step % 10 == 0:
+            torch.cuda.empty_cache()
         context_idxs = Variable(data['context_idxs'])#, volatile=True)
         ques_idxs = Variable(data['ques_idxs'])#, volatile=True)
         context_char_idxs = Variable(data['context_char_idxs'])#, volatile=True)
@@ -271,20 +274,23 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
             segment_ids = torch.tensor([f.segment_ids for f in eval_features], dtype=torch.long)
             example_index = torch.arange(input_ids.size(0), dtype=torch.long)
 
-            input_ids = input_ids #.to(device2)
-            input_mask = input_mask #.to(device2)
-            segment_ids = segment_ids #.to(device2)
+            input_ids = input_ids.to(device2)
+            input_mask = input_mask.to(device2)
+            segment_ids = segment_ids.to(device2)
             with torch.no_grad():
                 batch_start_logits, batch_end_logits = qa_model(input_ids, segment_ids, input_mask)
             for i, example_index in enumerate(example_index):
                 start_logits = batch_start_logits[i].detach().cpu().tolist()
                 end_logits = batch_end_logits[i].detach().cpu().tolist()
                 eval_feature = eval_features[example_index.item()]
-                unique_id = int(eval_feature.unique_id)
+                unique_id = eval_feature.unique_id
+                print(start_logits)
 
                 # TODO yes/no/no answer ####################
-                pred_answer = hotpot_dict[unique_id][""]
-                answer_dict[unique_id] = supporting_fact_dict[unique_id][start_logits:end_logits]
+                # TODO double check start an end
+                start = max(enumerate(start_logits), key=operator.itemgetter(1))[0]
+                end = max(enumerate(end_logits), key=operator.itemgetter(1))[0]
+                answer_dict[unique_id] = supporting_fact_dict[unique_id][start:end]
 
     # prediction = {'sp': sp_dict}
     prediction = {'answer': answer_dict, 'sp': sp_dict}

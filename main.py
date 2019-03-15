@@ -40,7 +40,7 @@ parser.add_argument('--char2idx_file', type=str, default=char2idx_file)
 parser.add_argument('--idx2word_file', type=str, default=idx2word_file)
 parser.add_argument('--idx2char_file', type=str, default=idx2char_file)
 
-parser.add_argument('--hotpot_file', type=str, default=idx2char_file)
+parser.add_argument('--hotpot_file', type=str, default="hotpot_dev_distractor_v1.json")
 
 
 parser.add_argument('--train_record_file', type=str, default=train_record_file)

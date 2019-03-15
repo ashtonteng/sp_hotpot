@@ -273,6 +273,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length=384,
             if is_training and example.is_impossible:
                 start_position = 0
                 end_position = 0
+            """
             if example_index < 20:
                 logger.info("*** Example ***")
                 logger.info("unique_id: %s" % (unique_id))
@@ -297,10 +298,10 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length=384,
                     logger.info("end_position: %d" % (end_position))
                     logger.info(
                         "answer: %s" % (answer_text))
-
+            """
             features.append(
                 InputFeatures(
-                    unique_id=unique_id,
+                    unique_id=example.qas_id,
                     example_index=example_index,
                     doc_span_index=doc_span_index,
                     tokens=tokens,
