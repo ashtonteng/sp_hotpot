@@ -19,6 +19,8 @@ import sys
 from torch.nn import functional as F
 from pytorch_pretrained_bert.tokenization import BasicTokenizer
 import process_data
+from pytorch_pretrained_bert.modeling import BertForQuestionAnswering
+
 
 def create_exp_dir(path, scripts_to_save=None):
     if not os.path.exists(path):
@@ -226,7 +228,7 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
     sp_dict = {}
     sp_th = config.sp_threshold
 
-    tokenizer = BasicTokenizer(do_lower_case=do_lower_case)
+    tokenizer = BasicTokenizer(do_lower_case=True)
 
     hotpot_dict = process_data.hotpot_to_dict(config.hotpot_file)
 
@@ -261,13 +263,13 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
 
         if qa_model != None:
             squad_format_pred, supporting_fact_dict = process_data.pred_2_squad(hotpot_dict, sp_dict)
-            pred_data = process_data.read_squad_examples(squad_format_pred, is_traning=False, version_2_with_negative=True)
-            pred_featres = process_data.convert_examples_to_features(examples=pred_data, tokenizer, 384, 128, 64, is_training=False)            # TODO tokenizer, max_seq_length, doc_stride, max_query_length
+            pred_data = process_data.read_squad_examples(squad_format_pred, is_training=False, version_2_with_negative=True)
+            eval_features = process_data.convert_examples_to_features(pred_data, tokenizer, is_training=False)            # TODO tokenizer, max_seq_length, doc_stride, max_query_length
 
             input_ids = torch.tensor([f.input_ids for f in eval_features], dtype=torch.long)
             input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
             segment_ids = torch.tensor([f.segment_ids for f in eval_features], dtype=torch.long)
-            example_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
+            example_index = torch.arange(input_ids.size(0), dtype=torch.long)
 
             input_ids = input_ids #.to(device2)
             input_mask = input_mask #.to(device2)
@@ -333,7 +335,7 @@ def test(config):
     sp_model = SPModel(config, word_mat, char_mat)
 
     if config.integrate:
-        qa_model = BertForQuestionAnswering.from_pretrained(args.bert_model,
+        qa_model = BertForQuestionAnswering.from_pretrained("bert-base-uncased",
                     cache_dir="~/.pytorch_pretrained_bert")
         qa_model.load_state_dict(torch.load("/home/jam/outputs/squad_hotpot_training_set/pytorch_model.bin"))
     if config.cuda:
@@ -347,7 +349,7 @@ def test(config):
     if config.cuda:
         print("im using my gpus!")
         ori_sp_model = sp_model.cuda()
-        ori_sp_model.load_state_dict(saved_weights)
+        ori_sp_model.load_state_dict(sp_saved_weights)
         ori_sp_model.to(device)
         # model = nn.DataParallel(ori_model)
         sp_model = ori_sp_model
@@ -359,6 +361,6 @@ def test(config):
     sp_model.eval()
 
     if config.integrate:
-        predict(build_dev_iterator(), sp_model, dev_eval_file, config, config.prediction_file, qa_model = qa_model qa_model)
+        predict(build_dev_iterator(), sp_model, dev_eval_file, config, config.prediction_file, qa_model)
     else:
         predict(build_dev_iterator(), sp_model, dev_eval_file, config, config.prediction_file)

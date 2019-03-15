@@ -1,3 +1,6 @@
+import json
+import collections
+
 class SquadExample(object):
     """
     A single training/test example for the Squad dataset.
@@ -68,8 +71,8 @@ class InputFeatures(object):
         self.is_impossible = is_impossible
 
 
-def convert_examples_to_features(examples, tokenizer, max_seq_length,
-                                 doc_stride, max_query_length, is_training):
+def convert_examples_to_features(examples, tokenizer, max_seq_length=384,
+                                 doc_stride=128, max_query_length=64, is_training=False):
     """Loads a data file into a list of `InputBatch`s."""
 
     unique_id = 1000000000
@@ -240,7 +243,7 @@ def read_squad_examples(input_data, is_training, version_2_with_negative):
         return False
 
     examples = []
-    for entry in input_data:
+    for entry in input_data['data']:
         for paragraph in entry["paragraphs"]:
             paragraph_text = paragraph["context"]
             doc_tokens = []
@@ -333,10 +336,11 @@ def hotpot_to_dict(hotpot_dir):
 
     return hotpot_dict
 
-def pred_2_squad(hotpot_dict, preds_dict)
+def pred_2_squad(hotpot_dict, preds_dict):
     # create dictionary structure for squad output
     squad = {'version':'v2.0',
              'data': []}
+    supporting_fact_dict = {}
     for ids in preds_dict.keys():
         entry = hotpot_dict[ids]
         answer_text = entry['answer']
@@ -353,6 +357,7 @@ def pred_2_squad(hotpot_dict, preds_dict)
                 continue
         context = " ".join(context_list)
 
+        supporting_fact_dict[ids] = context
         try:
             start = context.index(answer_text)
         except:
@@ -380,4 +385,4 @@ def pred_2_squad(hotpot_dict, preds_dict)
                                 'qas': [qa_dict]}]
                 }
         squad['data'].append(data)
-    return squad
+    return squad, supporting_fact_dict
