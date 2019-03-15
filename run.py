@@ -275,7 +275,7 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
             input_mask = input_mask #.to(device2)
             segment_ids = segment_ids #.to(device2)
             with torch.no_grad():
-                batch_start_logits, batch_end_logits = model(input_ids, segment_ids, input_mask)
+                batch_start_logits, batch_end_logits = qa_model(input_ids, segment_ids, input_mask)
             for i, example_index in enumerate(example_index):
                 start_logits = batch_start_logits[i].detach().cpu().tolist()
                 end_logits = batch_end_logits[i].detach().cpu().tolist()

@@ -4,8 +4,6 @@ from torch.autograd import Variable
 from torch import nn
 from torch.nn import functional as F
 import numpy as np
-import math
-from torch.nn import init
 from torch.nn.utils import rnn
 
 class SPModel(nn.Module):
