@@ -236,10 +236,11 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
         device2 = torch.device("cuda", 1)
 
     for step, data in enumerate(tqdm(data_source, desc="Iteration")):
-        if step == 221:
-            continue
-        #torch.cuda.synchronize()
-        #torch.cuda.empty_cache()
+        print(step)
+        #if int(220//config.batch_size) == step:
+        #    continue
+        # torch.cuda.synchronize()
+        torch.cuda.empty_cache()
         print("\n^: {} | {} | {} | {}".format(torch.cuda.memory_allocated(device=0), torch.cuda.memory_allocated(device=1), torch.cuda.memory_cached(device=0), torch.cuda.memory_cached(device=1)))
         context_idxs = Variable(data['context_idxs'])#, volatile=True)
         ques_idxs = Variable(data['ques_idxs'])#, volatile=True)
@@ -252,7 +253,7 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
 
         predict_support = sp_model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens,
                                           start_mapping, end_mapping, all_mapping, return_yp=True)
-
+        torch.cuda.empty_cache()
         # logit1, logit2, predict_type, predict_support, yp1, yp2 = model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens, start_mapping, end_mapping, all_mapping, return_yp=True)
         # answer_dict_ = convert_tokens(eval_file, data['ids'], yp1.data.cpu().numpy().tolist(), yp2.data.cpu().numpy().tolist(), np.argmax(predict_type.data.cpu().numpy(), 1))
         # answer_dict.update(answer_dict_)
@@ -266,7 +267,7 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
                 if predict_support_np[i, j] > sp_th:
                     cur_sp_pred.append(eval_file[cur_id]['sent2title_ids'][j])
             sp_dict.update({cur_id: cur_sp_pred})
-
+        torch.cuda.empty_cache()
         if qa_model != None:
             squad_format_pred, supporting_fact_dict = process_data.pred_2_squad(hotpot_dict, sp_dict)
             pred_data = process_data.read_squad_examples(squad_format_pred, is_training=False, version_2_with_negative=True)
@@ -342,7 +343,7 @@ def test(config):
 
     if config.integrate:
         qa_model = BertForQuestionAnswering.from_pretrained("bert-base-uncased", cache_dir="~/.pytorch_pretrained_bert")
-        qa_model.load_state_dict(torch.load("/home/jam/outputs/squad_hotpot_training_set/pytorch_model.bin"))
+        qa_model.load_state_dict(torch.load(config.qa_model_save))
     if config.cuda:
         # when only one device, set device here
         device = torch.device("cuda", 0)
