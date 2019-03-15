@@ -107,8 +107,6 @@ def train(config):
     for epoch in range(10000):
         for data in build_train_iterator():
             context_idxs = data['context_idxs']
-
-            print(context_idxs.size(0))
             ques_idxs = data['ques_idxs']
             context_char_idxs = data['context_char_idxs']
             ques_char_idxs = data['ques_char_idxs']
@@ -238,9 +236,11 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
         device2 = torch.device("cuda", 1)
 
     for step, data in enumerate(tqdm(data_source, desc="Iteration")):
-        torch.cuda.synchronize()
-        torch.cuda.empty_cache()
-
+        if step == 221:
+            continue
+        #torch.cuda.synchronize()
+        #torch.cuda.empty_cache()
+        print("\n^: {} | {} | {} | {}".format(torch.cuda.memory_allocated(device=0), torch.cuda.memory_allocated(device=1), torch.cuda.memory_cached(device=0), torch.cuda.memory_cached(device=1)))
         context_idxs = Variable(data['context_idxs'])#, volatile=True)
         ques_idxs = Variable(data['ques_idxs'])#, volatile=True)
         context_char_idxs = Variable(data['context_char_idxs'])#, volatile=True)
@@ -292,8 +292,7 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
                 start = max(enumerate(start_logits), key=operator.itemgetter(1))[0]
                 end = max(enumerate(end_logits), key=operator.itemgetter(1))[0]
                 answer_dict[unique_id] = supporting_fact_dict[unique_id][start:end]
-
-    # prediction = {'sp': sp_dict}
+        print("$: {} | {} | {} | {}".format(torch.cuda.memory_allocated(device=0), torch.cuda.memory_allocated(device=1), torch.cuda.memory_cached(device=0), torch.cuda.memory_cached(device=1)))
     prediction = {'answer': answer_dict, 'sp': sp_dict}
     with open(prediction_file, 'w') as f:
         json.dump(prediction, f)
