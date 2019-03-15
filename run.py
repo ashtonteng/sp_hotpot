@@ -240,7 +240,6 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
         torch.cuda.empty_cache()
 
         context_idxs = Variable(data['context_idxs'])#, volatile=True)
-        print(context_idxs.requires_grad)
         ques_idxs = Variable(data['ques_idxs'])#, volatile=True)
         context_char_idxs = Variable(data['context_char_idxs'])#, volatile=True)
         ques_char_idxs = Variable(data['ques_char_idxs'])#, volatile=True)
@@ -279,9 +278,7 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
             input_ids = input_ids.to(device2)
             input_mask = input_mask.to(device2)
             segment_ids = segment_ids.to(device2)
-            print(input_ids.requires_grad)
             batch_start_logits, batch_end_logits = qa_model(input_ids, segment_ids, input_mask)
-            print("batch", batch_start_logits.requires_grad)
 
             for i, example_index in enumerate(example_index):
                 start_logits = batch_start_logits[i].detach().cpu().tolist()
@@ -343,8 +340,7 @@ def test(config):
     sp_model = SPModel(config, word_mat, char_mat)
 
     if config.integrate:
-        qa_model = BertForQuestionAnswering.from_pretrained("bert-base-uncased",
-                    cache_dir="~/.pytorch_pretrained_bert")
+        qa_model = BertForQuestionAnswering.from_pretrained("bert-base-uncased", cache_dir="~/.pytorch_pretrained_bert")
         qa_model.load_state_dict(torch.load("/home/jam/outputs/squad_hotpot_training_set/pytorch_model.bin"))
     if config.cuda:
         # when only one device, set device here
