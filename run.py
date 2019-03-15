@@ -107,6 +107,8 @@ def train(config):
     for epoch in range(10000):
         for data in build_train_iterator():
             context_idxs = data['context_idxs']
+
+            print(context_idxs.size(0))
             ques_idxs = data['ques_idxs']
             context_char_idxs = data['context_char_idxs']
             ques_char_idxs = data['ques_char_idxs']

@@ -62,7 +62,7 @@ class SPModel(nn.Module):
     def forward(self, context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens, start_mapping, end_mapping, all_mapping, return_yp=False):
         para_size, ques_size, char_size, bsz = context_idxs.size(1), ques_idxs.size(1), context_char_idxs.size(2), context_idxs.size(0)
 
-        context_mask = (context_idxs > 0).float()
+        context_mask = (context_idxs > 0).float() # mask away padding
         ques_mask = (ques_idxs > 0).float()
 
         context_ch = self.char_emb(context_char_idxs.contiguous().view(-1, char_size)).view(bsz * para_size, char_size, -1)
