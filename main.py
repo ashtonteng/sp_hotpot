@@ -25,6 +25,7 @@ test_record_file = os.path.join(fp, 'test_record.pkl')
 parser.add_argument('--cuda', type=bool, default=False)
 
 parser.add_argument('--mode', type=str, default='train')
+parser.add_argument('--integrate', type=bool, default=False)
 parser.add_argument('--data_file', type=str)
 parser.add_argument('--glove_word_file', type=str, default=glove_word_file)
 parser.add_argument('--save', type=str, default='HOTPOT')
@@ -38,6 +39,9 @@ parser.add_argument('--word2idx_file', type=str, default=word2idx_file)
 parser.add_argument('--char2idx_file', type=str, default=char2idx_file)
 parser.add_argument('--idx2word_file', type=str, default=idx2word_file)
 parser.add_argument('--idx2char_file', type=str, default=idx2char_file)
+
+parser.add_argument('--hotpot_file', type=str, default=idx2char_file)
+
 
 parser.add_argument('--train_record_file', type=str, default=train_record_file)
 parser.add_argument('--dev_record_file', type=str, default=dev_record_file)

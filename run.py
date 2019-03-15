@@ -17,7 +17,8 @@ import torch
 from torch.autograd import Variable
 import sys
 from torch.nn import functional as F
-
+from pytorch_pretrained_bert.tokenization import BasicTokenizer
+import process_data
 
 def create_exp_dir(path, scripts_to_save=None):
     if not os.path.exists(path):
@@ -219,10 +220,18 @@ def evaluate_batch(data_source, model, max_batches, eval_file, config):
 
     return metrics
 
-def predict(data_source, model, eval_file, config, prediction_file):
-    # answer_dict = {}
+
+def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=None):
+    answer_dict = {} # only used when qa_model != None
     sp_dict = {}
     sp_th = config.sp_threshold
+
+    tokenizer = BasicTokenizer(do_lower_case=do_lower_case)
+
+    hotpot_dict = process_data.hotpot_to_dict(config.hotpot_file)
+
+    answer_dict = {}
+
     for step, data in enumerate(tqdm(data_source)):
         context_idxs = Variable(data['context_idxs'])#, volatile=True)
         ques_idxs = Variable(data['ques_idxs'])#, volatile=True)
@@ -233,8 +242,9 @@ def predict(data_source, model, eval_file, config, prediction_file):
         end_mapping = Variable(data['end_mapping'])#, volatile=True)
         all_mapping = Variable(data['all_mapping'])#, volatile=True)
 
-        predict_support = model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens,
+        predict_support = sp_model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens,
                                           start_mapping, end_mapping, all_mapping, return_yp=True)
+
         # logit1, logit2, predict_type, predict_support, yp1, yp2 = model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens, start_mapping, end_mapping, all_mapping, return_yp=True)
         # answer_dict_ = convert_tokens(eval_file, data['ids'], yp1.data.cpu().numpy().tolist(), yp2.data.cpu().numpy().tolist(), np.argmax(predict_type.data.cpu().numpy(), 1))
         # answer_dict.update(answer_dict_)
@@ -248,8 +258,34 @@ def predict(data_source, model, eval_file, config, prediction_file):
                 if predict_support_np[i, j] > sp_th:
                     cur_sp_pred.append(eval_file[cur_id]['sent2title_ids'][j])
             sp_dict.update({cur_id: cur_sp_pred})
-    prediction = {'sp': sp_dict}
-    # prediction = {'answer': answer_dict, 'sp': sp_dict}
+
+        if qa_model != None:
+            squad_format_pred, supporting_fact_dict = process_data.pred_2_squad(hotpot_dict, sp_dict)
+            pred_data = process_data.read_squad_examples(squad_format_pred, is_traning=False, version_2_with_negative=True)
+            pred_featres = process_data.convert_examples_to_features(examples=pred_data, tokenizer, 384, 128, 64, is_training=False)            # TODO tokenizer, max_seq_length, doc_stride, max_query_length
+
+            input_ids = torch.tensor([f.input_ids for f in eval_features], dtype=torch.long)
+            input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
+            segment_ids = torch.tensor([f.segment_ids for f in eval_features], dtype=torch.long)
+            example_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
+
+            input_ids = input_ids #.to(device2)
+            input_mask = input_mask #.to(device2)
+            segment_ids = segment_ids #.to(device2)
+            with torch.no_grad():
+                batch_start_logits, batch_end_logits = model(input_ids, segment_ids, input_mask)
+            for i, example_index in enumerate(example_index):
+                start_logits = batch_start_logits[i].detach().cpu().tolist()
+                end_logits = batch_end_logits[i].detach().cpu().tolist()
+                eval_feature = eval_features[example_index.item()]
+                unique_id = int(eval_feature.unique_id)
+
+                # TODO yes/no/no answer ####################
+                pred_answer = hotpot_dict[unique_id][""]
+                answer_dict[unique_id] = supporting_fact_dict[unique_id][start_logits:end_logits]
+
+    # prediction = {'sp': sp_dict}
+    prediction = {'answer': answer_dict, 'sp': sp_dict}
     with open(prediction_file, 'w') as f:
         json.dump(prediction, f)
 
@@ -294,21 +330,35 @@ def test(config):
             ques_limit, config.char_limit, False, config.sent_limit)
 
 
-    model = SPModel(config, word_mat, char_mat)
+    sp_model = SPModel(config, word_mat, char_mat)
 
+    if config.integrate:
+        qa_model = BertForQuestionAnswering.from_pretrained(args.bert_model,
+                    cache_dir="~/.pytorch_pretrained_bert")
+        qa_model.load_state_dict(torch.load("/home/jam/outputs/squad_hotpot_training_set/pytorch_model.bin"))
     if config.cuda:
-        saved_weights = torch.load(os.path.join(config.save, 'model.pt'))
+        # when only one device, set device here
+        device = torch.device("cuda", 0)
+        device2 = torch.device("cuda", 1)
+        sp_saved_weights = torch.load(os.path.join(config.save, 'model.pt'))
     else:
-        saved_weights = torch.load(os.path.join(config.save, 'model.pt'), map_location="cpu")
+        sp_saved_weights = torch.load(os.path.join(config.save, 'model.pt'), map_location="cpu")
 
     if config.cuda:
         print("im using my gpus!")
-        ori_model = model.cuda()
-        ori_model.load_state_dict(saved_weights)
-        # model.to(device)
+        ori_sp_model = sp_model.cuda()
+        ori_sp_model.load_state_dict(saved_weights)
+        ori_sp_model.to(device)
         # model = nn.DataParallel(ori_model)
-        model = ori_model
+        sp_model = ori_sp_model
+        qa_model.to(device2)
     else:
-        model.load_state_dict(saved_weights)
-    model.eval()
-    predict(build_dev_iterator(), model, dev_eval_file, config, config.prediction_file)
+        sp_model.load_state_dict(sp_saved_weights)
+
+    qa_model.eval()
+    sp_model.eval()
+
+    if config.integrate:
+        predict(build_dev_iterator(), sp_model, dev_eval_file, config, config.prediction_file, qa_model = qa_model qa_model)
+    else:
+        predict(build_dev_iterator(), sp_model, dev_eval_file, config, config.prediction_file)
