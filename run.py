@@ -225,20 +225,22 @@ def evaluate_batch(data_source, model, max_batches, eval_file, config):
 
 
 def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=None):
-    answer_dict = {} # only used when qa_model != None
+    torch.set_grad_enabled(False)
     sp_dict = {}
     sp_th = config.sp_threshold
 
-    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", do_lower_case=True)
-    print(tokenizer)
-    hotpot_dict = process_data.hotpot_to_dict(config.hotpot_file)
-    device2 = torch.device("cuda", 1)
-    answer_dict = {}
+    if qa_model != None:
+        answer_dict = {} # only used when qa_model != None
+        tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", do_lower_case=True)
+        hotpot_dict = process_data.hotpot_to_dict(config.hotpot_file)
+        device2 = torch.device("cuda", 1)
 
     for step, data in enumerate(tqdm(data_source, desc="Iteration")):
-        if step > 0 and step % 10 == 0:
-            torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+        torch.cuda.empty_cache()
+
         context_idxs = Variable(data['context_idxs'])#, volatile=True)
+        print(context_idxs.requires_grad)
         ques_idxs = Variable(data['ques_idxs'])#, volatile=True)
         context_char_idxs = Variable(data['context_char_idxs'])#, volatile=True)
         ques_char_idxs = Variable(data['ques_char_idxs'])#, volatile=True)
