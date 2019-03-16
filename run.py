@@ -235,7 +235,7 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
         hotpot_dict = process_data.hotpot_to_dict(config.hotpot_file)
         print("wrong series description")
         device2 = torch.device("cuda", 1)
-
+    import pickle
     for step, data in enumerate(tqdm(data_source, desc="Iteration")):
         #if int(220//config.batch_size) == step:
         #    continue
@@ -259,15 +259,16 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
         # answer_dict.update(answer_dict_)
 
         predict_support_np = torch.sigmoid(predict_support[:, :, 1]).data.cpu().numpy()
+        pickle.dump(predict_support_np, open("predict_support_np_{}.pkl".format(step), "wb"))
         sp_batch_dict={}
         for i in range(predict_support_np.shape[0]): # for item in batch
             cur_sp_pred = []
             cur_id = data['ids'][i]
             max_sp = None
             max_sp_score = 0 
-            for j in range(predict_support_np.shape[1]):
+            for j in range(predict_support_np.shape[1]): # for each sentence in the paragraph
                 if j >= len(eval_file[cur_id]['sent2title_ids']): break
-                sp_score = predict_support_np[i, j]
+                sp_score = predict_support_np[i, j] # our predicted score for this sentence
                 sp = eval_file[cur_id]['sent2title_ids'][j]
                 if sp_score > max_sp_score: # always keep max sp, even if not past threshold
                     max_sp_score = sp_score
