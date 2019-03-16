@@ -310,7 +310,10 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
                 end = max(enumerate(end_logits), key=operator.itemgetter(1))[0]
                 answer_dict[unique_id] = supporting_fact_dict[unique_id][start:end]
         #print("$: {} | {} | {} | {}".format(torch.cuda.memory_allocated(device=0), torch.cuda.memory_allocated(device=1), torch.cuda.memory_cached(device=0), torch.cuda.memory_cached(device=1)))
-    prediction = {'answer': answer_dict, 'sp': sp_dict}
+    if config.integrate:
+        prediction = {'answer': answer_dict, 'sp': sp_dict}
+    else:
+        prediction = {'sp': sp_dict}
     with open(prediction_file, 'w') as f:
         json.dump(prediction, f)
 
