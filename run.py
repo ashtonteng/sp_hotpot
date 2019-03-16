@@ -227,21 +227,20 @@ def evaluate_batch(data_source, model, max_batches, eval_file, config):
 def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=None):
     torch.set_grad_enabled(False)
     sp_dict = dict()
+    qa_sp_dict = dict()
+    answer_dict = {}  # only used when qa_model != None
     # sp_logits_dict = dict() ###
     sp_th = config.sp_threshold
+    qa_sp_th = config.qa_sp_threshold
 
     if qa_model != None:
-        answer_dict = {} # only used when qa_model != None
+
         tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", do_lower_case=True)
         hotpot_dict = process_data.hotpot_to_dict(config.hotpot_file)
         print("wrong series description")
         device2 = torch.device("cuda", 1)
     for step, data in enumerate(tqdm(data_source, desc="Iteration")):
-        #if int(220//config.batch_size) == step:
-        #    continue
-        # torch.cuda.synchronize()
         #torch.cuda.empty_cache()
-        #print("\n^: {} | {} | {} | {}".format(torch.cuda.memory_allocated(device=0), torch.cuda.memory_allocated(device=1), torch.cuda.memory_cached(device=0), torch.cuda.memory_cached(device=1)))
         context_idxs = Variable(data['context_idxs'])#, volatile=True)
         ques_idxs = Variable(data['ques_idxs'])#, volatile=True)
         context_char_idxs = Variable(data['context_char_idxs'])#, volatile=True)
@@ -253,16 +252,17 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
 
         predict_support = sp_model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens,
                                           start_mapping, end_mapping, all_mapping, return_yp=True)
-        #torch.cuda.empty_cache()
         # logit1, logit2, predict_type, predict_support, yp1, yp2 = model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens, start_mapping, end_mapping, all_mapping, return_yp=True)
         # answer_dict_ = convert_tokens(eval_file, data['ids'], yp1.data.cpu().numpy().tolist(), yp2.data.cpu().numpy().tolist(), np.argmax(predict_type.data.cpu().numpy(), 1))
         # answer_dict.update(answer_dict_)
 
         predict_support_np = torch.sigmoid(predict_support[:, :, 1]).data.cpu().numpy()
         sp_batch_dict = dict()
+        qa_sp_batch_dict = dict()
         #sp_batch_logits_dict = dict() ###
         for i in range(predict_support_np.shape[0]): # for item in batch
             #cur_sp_pred_logits = [] ###
+            cur_qa_sp_pred = []
             cur_sp_pred = []
             cur_id = data['ids'][i]
             max_sp = None
@@ -275,20 +275,25 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
                 if sp_score > max_sp_score: # always keep max sp, even if not past threshold
                     max_sp_score = sp_score
                     max_sp = sp
+                if predict_support_np[i, j] > qa_sp_th:
+                    cur_qa_sp_pred.append(sp)
                 if predict_support_np[i, j] > sp_th:
                     cur_sp_pred.append(sp)
+            if len(cur_qa_sp_pred) == 0:  # if none of the sentences made the cut, pick the max score one
+                cur_qa_sp_pred = [max_sp]
             if len(cur_sp_pred) == 0: # if none of the sentences made the cut, pick the max score one
                 cur_sp_pred = [max_sp]
             #sp_batch_logits_dict[cur_id] = cur_sp_pred_logits ###
+            qa_sp_batch_dict[cur_id] = cur_qa_sp_pred
             sp_batch_dict[cur_id] = cur_sp_pred
         #sp_logits_dict.update(sp_batch_logits_dict) ###
+        qa_sp_dict.update(qa_sp_dict)
         sp_dict.update(sp_batch_dict)
-        #torch.cuda.empty_cache()
         if qa_model != None:
             #import pdb
             #pdb.set_trace()
             ################## TODO ############################# does hotpot dict has yes/no?
-            squad_format_pred, supporting_fact_dict = process_data.pred_2_squad(hotpot_dict, sp_batch_dict)
+            squad_format_pred, supporting_fact_dict = process_data.pred_2_squad(hotpot_dict, qa_sp_batch_dict)
             pred_data = process_data.read_squad_examples(squad_format_pred, is_training=False, version_2_with_negative=True)
             eval_features = process_data.convert_examples_to_features(pred_data, tokenizer, is_training=False)            # TODO tokenizer, max_seq_length, doc_stride, max_query_length
 
@@ -311,7 +316,6 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
                 yes_no_logits = yes_no_list[i]
                 eval_feature = eval_features[example_index.item()]
                 unique_id = eval_feature.unique_id
-                # TODO yes/no/no answer ####################
                 yes_no_int = np.argmax(yes_no_logits)
                 if yes_no_int == 0:
                     answer = "yes"
@@ -321,14 +325,12 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
                     start = max(enumerate(start_logits), key=operator.itemgetter(1))[0]
                     end = max(enumerate(end_logits), key=operator.itemgetter(1))[0]
                     answer = supporting_fact_dict[unique_id][start:end]
-                # TODO double check start an end
+                # TODO double check start and end
                 answer_dict[unique_id] = answer
-
-                #print("$: {} | {} | {} | {}".format(torch.cuda.memory_allocated(device=0), torch.cuda.memory_allocated(device=1), torch.cuda.memory_cached(device=0), torch.cuda.memory_cached(device=1)))
     #import pickle
     #pickle.dump(sp_logits_dict, open("sp_logits_dict.pkl", "wb"))
     if config.integrate:
-        prediction = {'answer': answer_dict, 'sp': sp_dict}
+        prediction = {'answer': answer_dict, 'sp': qa_sp_dict}
     else:
         prediction = {'sp': sp_dict}
     with open(prediction_file, 'w') as f:

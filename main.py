@@ -68,12 +68,11 @@ parser.add_argument('--char_hidden', type=int, default=100)
 parser.add_argument('--patience', type=int, default=1)
 parser.add_argument('--seed', type=int, default=13)
 
-parser.add_argument('--sp_lambda', type=float, default=0.0)
-
 parser.add_argument('--data_split', type=str, default='train')
 parser.add_argument('--fullwiki', action='store_true')
 parser.add_argument('--prediction_file', type=str)
-parser.add_argument('--sp_threshold', type=float, default=0.3)
+parser.add_argument('--sp_threshold', type=float, default=0.5)
+parser.add_argument('--qa_sp_threshold', type=float, default=0.3)
 
 config = parser.parse_args()
 
