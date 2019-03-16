@@ -226,7 +226,8 @@ def evaluate_batch(data_source, model, max_batches, eval_file, config):
 
 def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=None):
     torch.set_grad_enabled(False)
-    sp_dict = {}
+    sp_dict = dict()
+    sp_logits_dict = dict() ###
     sp_th = config.sp_threshold
 
     if qa_model != None:
@@ -260,8 +261,10 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
 
         predict_support_np = torch.sigmoid(predict_support[:, :, 1]).data.cpu().numpy()
         pickle.dump(predict_support_np, open("predict_support_np_{}.pkl".format(step), "wb"))
-        sp_batch_dict={}
+        sp_batch_dict = dict()
+        sp_batch_logits_dict = dict() ###
         for i in range(predict_support_np.shape[0]): # for item in batch
+            cur_sp_pred_logits = [] ###
             cur_sp_pred = []
             cur_id = data['ids'][i]
             max_sp = None
@@ -270,12 +273,15 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
                 if j >= len(eval_file[cur_id]['sent2title_ids']): break
                 sp_score = predict_support_np[i, j] # our predicted score for this sentence
                 sp = eval_file[cur_id]['sent2title_ids'][j]
+                cur_sp_pred_logits.append((sp, sp_score)) ###
                 if sp_score > max_sp_score: # always keep max sp, even if not past threshold
                     max_sp_score = sp_score
                     max_sp = sp
                 if predict_support_np[i, j] > sp_th:
                     cur_sp_pred.append(sp)
+            sp_batch_logits_dict[cur_id] = cur_sp_pred_logits ###
             sp_batch_dict[cur_id] = cur_sp_pred
+        sp_logits_dict.update(sp_batch_logits_dict) ###
         sp_dict.update(sp_batch_dict)
         #torch.cuda.empty_cache()
         if qa_model != None:
@@ -314,7 +320,7 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
     if config.integrate:
         prediction = {'answer': answer_dict, 'sp': sp_dict}
     else:
-        prediction = {'sp': sp_dict}
+        prediction = {'sp': sp_dict, 'sp_logits': sp_logits_dict}
     with open(prediction_file, 'w') as f:
         json.dump(prediction, f)
 

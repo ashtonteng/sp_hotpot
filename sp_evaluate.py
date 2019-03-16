@@ -48,11 +48,7 @@ def update_sp(metrics, prediction, gold):
     metrics['sp_recall'] += recall
     return em, prec, recall
 
-def eval(prediction_file, gold_file):
-    with open(prediction_file) as f:
-        prediction = json.load(f)
-    with open(gold_file) as f:
-        gold = json.load(f)
+def eval(prediction, gold):
 
     metrics = {'sp_em': 0, 'sp_f1': 0, 'sp_prec': 0, 'sp_recall': 0}
 
@@ -67,8 +63,41 @@ def eval(prediction_file, gold_file):
     for k in metrics.keys():
         metrics[k] /= N
 
-    print(metrics)
+    return metrics
+
+def plot_precision_recall(prediction, gold):
+    ems = []
+    f1s = []
+    precisions = []
+    recalls = []
+    import numpy as np
+    for sp_thresh in np.arange(0.0, 1.0, 0.01):
+        metrics = {'sp_em': 0, 'sp_f1': 0, 'sp_prec': 0, 'sp_recall': 0}
+        sp_preds = [] # list of [title, idx], predictions for sp
+        for dp in gold:
+            cur_id = dp['_id']
+            if cur_id in prediction['sp']:
+                sp_logit_tuples = prediction['sp'][cur_id] # list of supporting facts, each is ([title, idx], score)
+                for sp, score in sp_logit_tuples:
+                    if score > sp_thresh:
+                        sp_preds.append(sp)
+                update_sp(metrics, sp_preds, dp['supporting_facts'])
+        N = len(gold)
+        for k in metrics.keys():
+            metrics[k] /= N
+        ems.append(metrics['sp_em'])
+        f1s.append(metrics['sp_f1'])
+        precisions.append(metrics['sp_prec'])
+        recalls.append(metrics['sp_recall'])
+    import pickle
+    pickle.dump([ems, f1s, precisions, recalls], open("stats.pkl", "wb"))
 
 if __name__ == '__main__':
-    eval(sys.argv[1], sys.argv[2])
+    prediction_file, gold_file = sys.argv[1], sys.argv[2]
+    with open(prediction_file) as f:
+        prediction = json.load(f)
+    with open(gold_file) as f:
+        gold = json.load(f)
+    metrics = eval(prediction, gold)
+    print(metrics)
 
