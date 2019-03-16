@@ -42,6 +42,7 @@ parser.add_argument('--idx2char_file', type=str, default=idx2char_file)
 
 parser.add_argument('--hotpot_file', type=str, default="hotpot_dev_distractor_v1.json")
 parser.add_argument('--qa_model_save', type=str)
+parser.add_argument('--sp_model_save', type=str)
 
 parser.add_argument('--train_record_file', type=str, default=train_record_file)
 parser.add_argument('--dev_record_file', type=str, default=dev_record_file)

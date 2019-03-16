@@ -375,9 +375,9 @@ def test(config):
         # when only one device, set device here
         device = torch.device("cuda", 0)
         device2 = torch.device("cuda", 1)
-        sp_saved_weights = torch.load(os.path.join(config.save, 'model.pt'))
+        sp_saved_weights = torch.load(config.sp_model_save)
     else:
-        sp_saved_weights = torch.load(os.path.join(config.save, 'model.pt'), map_location="cpu")
+        sp_saved_weights = torch.load(config.sp_model_save, map_location="cpu")
 
     if config.cuda:
         print("im using my gpus!")
