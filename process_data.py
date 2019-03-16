@@ -457,9 +457,8 @@ def pred_2_squad(hotpot_dict, preds_dict):
             try:
                 context_list.append(entry['context'][para_name][sentence_idx])
             except:
-
                 print(ids,para_name, sentence_idx)
-                continue
+                #continue
         context = " ".join(context_list)
 
         supporting_fact_dict[ids] = context

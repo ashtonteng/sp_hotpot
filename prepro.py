@@ -95,7 +95,6 @@ def _process_article(article, config):
     def _process(sent, is_sup_fact, is_title=False):
         nonlocal text_context, context_tokens, context_chars, offsets, start_end_facts, flat_offsets
         N_chars = len(text_context)
-
         sent = sent
         sent_tokens = word_tokenize(sent)
         if is_title:
