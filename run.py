@@ -277,21 +277,25 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
             input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
             segment_ids = torch.tensor([f.segment_ids for f in eval_features], dtype=torch.long)
             example_index = torch.arange(input_ids.size(0), dtype=torch.long)
+            yns = torch.tensor([f.yns for f in eval_features], dtype=torch.long).view(config.batch_size)
 
             input_ids = input_ids.to(device2)
             input_mask = input_mask.to(device2)
             segment_ids = segment_ids.to(device2)
-            batch_start_logits, batch_end_logits = qa_model(input_ids, segment_ids, input_mask)
+            yns = yns.to(device2)
+            batch_start_logits, batch_end_logits, yes_no_span = qa_model(input_ids, segment_ids, input_mask)
 
             for i, example_index in enumerate(example_index):
                 start_logits = batch_start_logits[i].detach().cpu().tolist()
                 end_logits = batch_end_logits[i].detach().cpu().tolist()
+                yes_no = batch_end_logits[i].detach().cpu().tolist()
                 eval_feature = eval_features[example_index.item()]
                 unique_id = eval_feature.unique_id
                 # TODO yes/no/no answer ####################
                 # TODO double check start an end
                 start = max(enumerate(start_logits), key=operator.itemgetter(1))[0]
                 end = max(enumerate(end_logits), key=operator.itemgetter(1))[0]
+                print(yes_no) # TODO
                 answer_dict[unique_id] = supporting_fact_dict[unique_id][start:end]
         print("$: {} | {} | {} | {}".format(torch.cuda.memory_allocated(device=0), torch.cuda.memory_allocated(device=1), torch.cuda.memory_cached(device=0), torch.cuda.memory_cached(device=1)))
     prediction = {'answer': answer_dict, 'sp': sp_dict}
