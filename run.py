@@ -143,7 +143,7 @@ def train(config):
 
             if global_step % config.checkpoint == 0:
                 model.eval()
-                torch.cuda.empty_cache()
+                #torch.cuda.empty_cache()
                 metrics = evaluate_batch(build_dev_iterator(), model, 0, dev_eval_file, config)
                 model.train()
 
@@ -237,12 +237,11 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
         device2 = torch.device("cuda", 1)
 
     for step, data in enumerate(tqdm(data_source, desc="Iteration")):
-        print(step)
         #if int(220//config.batch_size) == step:
         #    continue
         # torch.cuda.synchronize()
-        torch.cuda.empty_cache()
-        print("\n^: {} | {} | {} | {}".format(torch.cuda.memory_allocated(device=0), torch.cuda.memory_allocated(device=1), torch.cuda.memory_cached(device=0), torch.cuda.memory_cached(device=1)))
+        #torch.cuda.empty_cache()
+        #print("\n^: {} | {} | {} | {}".format(torch.cuda.memory_allocated(device=0), torch.cuda.memory_allocated(device=1), torch.cuda.memory_cached(device=0), torch.cuda.memory_cached(device=1)))
         context_idxs = Variable(data['context_idxs'])#, volatile=True)
         ques_idxs = Variable(data['ques_idxs'])#, volatile=True)
         context_char_idxs = Variable(data['context_char_idxs'])#, volatile=True)
@@ -254,25 +253,33 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
 
         predict_support = sp_model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens,
                                           start_mapping, end_mapping, all_mapping, return_yp=True)
-        torch.cuda.empty_cache()
+        #torch.cuda.empty_cache()
         # logit1, logit2, predict_type, predict_support, yp1, yp2 = model(context_idxs, ques_idxs, context_char_idxs, ques_char_idxs, context_lens, start_mapping, end_mapping, all_mapping, return_yp=True)
         # answer_dict_ = convert_tokens(eval_file, data['ids'], yp1.data.cpu().numpy().tolist(), yp2.data.cpu().numpy().tolist(), np.argmax(predict_type.data.cpu().numpy(), 1))
         # answer_dict.update(answer_dict_)
 
         predict_support_np = torch.sigmoid(predict_support[:, :, 1]).data.cpu().numpy()
         sp_batch_dict={}
-        for i in range(predict_support_np.shape[0]):
+        for i in range(predict_support_np.shape[0]): # for item in batch
             cur_sp_pred = []
             cur_id = data['ids'][i]
+            max_sp = None
+            max_sp_score = 0 
             for j in range(predict_support_np.shape[1]):
                 if j >= len(eval_file[cur_id]['sent2title_ids']): break
+                sp_score = predict_support_np[i, j]
+                sp = eval_file[cur_id]['sent2title_ids'][j]
+                if sp_score > max_sp_score: # always keep max sp, even if not past threshold
+                    max_sp_score = sp_score
+                    max_sp = sp
                 if predict_support_np[i, j] > sp_th:
-                    cur_sp_pred.append(eval_file[cur_id]['sent2title_ids'][j])
+                    cur_sp_pred.append(sp)
             sp_batch_dict[cur_id] = cur_sp_pred
         sp_dict.update(sp_batch_dict)
-        torch.cuda.empty_cache()
+        #torch.cuda.empty_cache()
         if qa_model != None:
-
+            #import pdb
+            #pdb.set_trace()
             ################## TODO ############################# does hotpot dict has yes/no?
             squad_format_pred, supporting_fact_dict = process_data.pred_2_squad(hotpot_dict, sp_batch_dict)
             pred_data = process_data.read_squad_examples(squad_format_pred, is_training=False, version_2_with_negative=True)
@@ -282,8 +289,8 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
             input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
             segment_ids = torch.tensor([f.segment_ids for f in eval_features], dtype=torch.long)
             example_index = torch.arange(input_ids.size(0), dtype=torch.long)
-            import pdb
-            pdb.set_trace()
+            #import pdb
+            #pdb.set_trace()
             yns = torch.tensor([f.yns for f in eval_features], dtype=torch.long).view(config.batch_size)
             input_ids = input_ids.to(device2)
             input_mask = input_mask.to(device2)
@@ -302,7 +309,7 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
                 start = max(enumerate(start_logits), key=operator.itemgetter(1))[0]
                 end = max(enumerate(end_logits), key=operator.itemgetter(1))[0]
                 answer_dict[unique_id] = supporting_fact_dict[unique_id][start:end]
-        print("$: {} | {} | {} | {}".format(torch.cuda.memory_allocated(device=0), torch.cuda.memory_allocated(device=1), torch.cuda.memory_cached(device=0), torch.cuda.memory_cached(device=1)))
+        #print("$: {} | {} | {} | {}".format(torch.cuda.memory_allocated(device=0), torch.cuda.memory_allocated(device=1), torch.cuda.memory_cached(device=0), torch.cuda.memory_cached(device=1)))
     prediction = {'answer': answer_dict, 'sp': sp_dict}
     with open(prediction_file, 'w') as f:
         json.dump(prediction, f)
@@ -369,14 +376,15 @@ def test(config):
         ori_sp_model.to(device)
         # model = nn.DataParallel(ori_model)
         sp_model = ori_sp_model
-        qa_model.to(device2)
+        if config.integrate:
+            qa_model.to(device2)
     else:
         sp_model.load_state_dict(sp_saved_weights)
 
-    qa_model.eval()
     sp_model.eval()
 
     if config.integrate:
+        qa_model.eval()
         predict(build_dev_iterator(), sp_model, dev_eval_file, config, config.prediction_file, qa_model)
     else:
         predict(build_dev_iterator(), sp_model, dev_eval_file, config, config.prediction_file)

@@ -365,8 +365,9 @@ def read_squad_examples(input_data, is_training, version_2_with_negative):
                     if (len(qa["answers"]) != 1) and (not is_impossible):
                         raise ValueError(
                             "For training, each question should have exactly 1 answer.")
-                    if not is_impossible:
-                        answer = qa["answers"][0]
+
+                    answer = qa["answers"][0]
+                    if answer is not "yes" and answer is not "no":
                         orig_answer_text = answer["text"]
                         answer_offset = answer["answer_start"]
                         answer_length = len(orig_answer_text)
@@ -374,7 +375,10 @@ def read_squad_examples(input_data, is_training, version_2_with_negative):
                             start_position = char_to_word_offset[answer_offset]
                             end_position = char_to_word_offset[answer_offset + answer_length - 1]
                         except:
-                            continue
+                            print("*"*80 + "\n", question_text, answer)
+                            start_position = -100
+                            end_position = -100
+                        	
                         actual_text = " ".join(doc_tokens[start_position:(end_position + 1)])
                         cleaned_answer_text = " ".join(
                             whitespace_tokenize(orig_answer_text))
@@ -383,8 +387,8 @@ def read_squad_examples(input_data, is_training, version_2_with_negative):
                         #                   actual_text, cleaned_answer_text)
                         #    continue
                     else:
-                        start_position = -1
-                        end_position = -1
+                        start_position = -100
+                        end_position = -100
                         orig_answer_text = ""
 
                 # TODO ##########################################################
@@ -445,8 +449,7 @@ def pred_2_squad(hotpot_dict, preds_dict):
     for ids in preds_dict.keys():
         entry = hotpot_dict[ids]
         answer_text = entry['answer']
-        # TODO  excluding Y/N answers for checkpoint
-        if answer_text == "yes" or answer_text == "no": continue
+        #if answer_text == "yes" or answer_text == "no": continue
         # get context paragraph from entry
         #context = create_context_paragraph(entry)
         context_list = []
@@ -454,6 +457,7 @@ def pred_2_squad(hotpot_dict, preds_dict):
             try:
                 context_list.append(entry['context'][para_name][sentence_idx])
             except:
+
                 print(ids,para_name, sentence_idx)
                 continue
         context = " ".join(context_list)
@@ -465,8 +469,7 @@ def pred_2_squad(hotpot_dict, preds_dict):
             #print("*   :" , answer_text)
             #print(context)
             #continue
-            # TODO what to set for start if answer not in predicted supporting fact
-            start = -1
+            start = -100
         question = entry['question']
 
         # create answer dictionary
