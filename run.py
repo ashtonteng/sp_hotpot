@@ -21,7 +21,7 @@ from torch.nn import functional as F
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 import process_data
 from pytorch_pretrained_bert.modeling import BertForQuestionAnswering
-
+from hotpot_qa_model import BertForHotpotQA
 
 def create_exp_dir(path, scripts_to_save=None):
     if not os.path.exists(path):
@@ -233,6 +233,7 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
         answer_dict = {} # only used when qa_model != None
         tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", do_lower_case=True)
         hotpot_dict = process_data.hotpot_to_dict(config.hotpot_file)
+        print("wrong series description")
         device2 = torch.device("cuda", 1)
 
     for step, data in enumerate(tqdm(data_source, desc="Iteration")):
@@ -259,6 +260,7 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
         # answer_dict.update(answer_dict_)
 
         predict_support_np = torch.sigmoid(predict_support[:, :, 1]).data.cpu().numpy()
+        sp_batch_dict={}
         for i in range(predict_support_np.shape[0]):
             cur_sp_pred = []
             cur_id = data['ids'][i]
@@ -266,10 +268,13 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
                 if j >= len(eval_file[cur_id]['sent2title_ids']): break
                 if predict_support_np[i, j] > sp_th:
                     cur_sp_pred.append(eval_file[cur_id]['sent2title_ids'][j])
-            sp_dict.update({cur_id: cur_sp_pred})
+            sp_batch_dict[cur_id] = cur_sp_pred
+        sp_dict.update(sp_batch_dict)
         torch.cuda.empty_cache()
         if qa_model != None:
-            squad_format_pred, supporting_fact_dict = process_data.pred_2_squad(hotpot_dict, sp_dict)
+
+            ################## TODO ############################# does hotpot dict has yes/no?
+            squad_format_pred, supporting_fact_dict = process_data.pred_2_squad(hotpot_dict, sp_batch_dict)
             pred_data = process_data.read_squad_examples(squad_format_pred, is_training=False, version_2_with_negative=True)
             eval_features = process_data.convert_examples_to_features(pred_data, tokenizer, is_training=False)            # TODO tokenizer, max_seq_length, doc_stride, max_query_length
 
@@ -277,8 +282,9 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
             input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
             segment_ids = torch.tensor([f.segment_ids for f in eval_features], dtype=torch.long)
             example_index = torch.arange(input_ids.size(0), dtype=torch.long)
+            import pdb
+            pdb.set_trace()
             yns = torch.tensor([f.yns for f in eval_features], dtype=torch.long).view(config.batch_size)
-
             input_ids = input_ids.to(device2)
             input_mask = input_mask.to(device2)
             segment_ids = segment_ids.to(device2)
@@ -295,7 +301,6 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
                 # TODO double check start an end
                 start = max(enumerate(start_logits), key=operator.itemgetter(1))[0]
                 end = max(enumerate(end_logits), key=operator.itemgetter(1))[0]
-                print(yes_no) # TODO
                 answer_dict[unique_id] = supporting_fact_dict[unique_id][start:end]
         print("$: {} | {} | {} | {}".format(torch.cuda.memory_allocated(device=0), torch.cuda.memory_allocated(device=1), torch.cuda.memory_cached(device=0), torch.cuda.memory_cached(device=1)))
     prediction = {'answer': answer_dict, 'sp': sp_dict}
@@ -346,7 +351,8 @@ def test(config):
     sp_model = SPModel(config, word_mat, char_mat)
 
     if config.integrate:
-        qa_model = BertForQuestionAnswering.from_pretrained("bert-base-uncased", cache_dir="~/.pytorch_pretrained_bert")
+        #qa_model = BertForQuestionAnswering.from_pretrained("bert-base-uncased", cache_dir="~/.pytorch_pretrained_bert")
+        qa_model = BertForHotpotQA.from_pretrained("bert-base-uncased", cache_dir="~/hotpot/.pytorch_pretrained_bert")
         qa_model.load_state_dict(torch.load(config.qa_model_save))
     if config.cuda:
         # when only one device, set device here

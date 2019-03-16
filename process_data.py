@@ -97,6 +97,7 @@ class SquadExample(object):
                  orig_answer_text=None,
                  start_position=None,
                  end_position=None,
+                 yes_no_span=None,
                  is_impossible=None):
         self.qas_id = qas_id
         self.question_text = question_text
@@ -104,6 +105,7 @@ class SquadExample(object):
         self.orig_answer_text = orig_answer_text
         self.start_position = start_position
         self.end_position = end_position
+        self.yns = yes_no_span
         self.is_impossible = is_impossible
 
     def __str__(self):
@@ -139,6 +141,7 @@ class InputFeatures(object):
                  segment_ids,
                  start_position=None,
                  end_position=None,
+                 yns=None,
                  is_impossible=None):
         self.unique_id = unique_id
         self.example_index = example_index
@@ -151,6 +154,7 @@ class InputFeatures(object):
         self.segment_ids = segment_ids
         self.start_position = start_position
         self.end_position = end_position
+        self.yns=yns
         self.is_impossible = is_impossible
 
 
@@ -299,6 +303,8 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length=384,
                     logger.info(
                         "answer: %s" % (answer_text))
             """
+
+
             features.append(
                 InputFeatures(
                     unique_id=example.qas_id,
@@ -312,7 +318,9 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length=384,
                     segment_ids=segment_ids,
                     start_position=start_position,
                     end_position=end_position,
+                    yns=example.yns,
                     is_impossible=example.is_impossible))
+
             unique_id += 1
 
     return features
@@ -362,15 +370,18 @@ def read_squad_examples(input_data, is_training, version_2_with_negative):
                         orig_answer_text = answer["text"]
                         answer_offset = answer["answer_start"]
                         answer_length = len(orig_answer_text)
-                        start_position = char_to_word_offset[answer_offset]
-                        end_position = char_to_word_offset[answer_offset + answer_length - 1]
+                        try:
+                            start_position = char_to_word_offset[answer_offset]
+                            end_position = char_to_word_offset[answer_offset + answer_length - 1]
+                        except:
+                            continue
                         actual_text = " ".join(doc_tokens[start_position:(end_position + 1)])
                         cleaned_answer_text = " ".join(
                             whitespace_tokenize(orig_answer_text))
-                        if actual_text.find(cleaned_answer_text) == -1:
-                            logger.warning("Could not find answer: '%s' vs. '%s'",
-                                           actual_text, cleaned_answer_text)
-                            continue
+                        #if actual_text.find(cleaned_answer_text) == -1:
+                        #    logger.warning("Could not find answer: '%s' vs. '%s'",
+                        #                   actual_text, cleaned_answer_text)
+                        #    continue
                     else:
                         start_position = -1
                         end_position = -1
@@ -378,7 +389,12 @@ def read_squad_examples(input_data, is_training, version_2_with_negative):
 
                 # TODO ##########################################################
 
-
+                if orig_answer_text == "yes":
+                    yes_no_span = 0
+                elif orig_answer_text  == "no":
+                    yes_no_span = 1
+                else:
+                    yes_no_span = 2
                 example = SquadExample(
                     qas_id=qas_id,
                     question_text=question_text,
@@ -386,6 +402,7 @@ def read_squad_examples(input_data, is_training, version_2_with_negative):
                     orig_answer_text=orig_answer_text,
                     start_position=start_position,
                     end_position=end_position,
+                    yes_no_span = yes_no_span,
                     is_impossible=is_impossible)
                 examples.append(example)
     return examples
