@@ -277,6 +277,8 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
                     max_sp = sp
                 if predict_support_np[i, j] > sp_th:
                     cur_sp_pred.append(sp)
+            if len(cur_sp_pred) == 0: # if none of the sentences made the cut, pick the max score one
+                cur_sp_pred = [max_sp]
             #sp_batch_logits_dict[cur_id] = cur_sp_pred_logits ###
             sp_batch_dict[cur_id] = cur_sp_pred
         #sp_logits_dict.update(sp_batch_logits_dict) ###
@@ -302,19 +304,27 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
             segment_ids = segment_ids.to(device2)
             yns = yns.to(device2)
             batch_start_logits, batch_end_logits, yes_no_span = qa_model(input_ids, segment_ids, input_mask)
-
+            yes_no_list = yes_no_span[i].detach().cpu().tolist()
             for i, example_index in enumerate(example_index):
                 start_logits = batch_start_logits[i].detach().cpu().tolist()
                 end_logits = batch_end_logits[i].detach().cpu().tolist()
-                yes_no = batch_end_logits[i].detach().cpu().tolist()
+                yes_no_logits = yes_no_list[i]
                 eval_feature = eval_features[example_index.item()]
                 unique_id = eval_feature.unique_id
                 # TODO yes/no/no answer ####################
+                yes_no_int = np.argmax(yes_no_logits)
+                if yes_no_int == 0:
+                    answer = "yes"
+                elif yes_no_int == 1:
+                    answer = "no"
+                else:
+                    start = max(enumerate(start_logits), key=operator.itemgetter(1))[0]
+                    end = max(enumerate(end_logits), key=operator.itemgetter(1))[0]
+                    answer = supporting_fact_dict[unique_id][start:end]
                 # TODO double check start an end
-                start = max(enumerate(start_logits), key=operator.itemgetter(1))[0]
-                end = max(enumerate(end_logits), key=operator.itemgetter(1))[0]
-                answer_dict[unique_id] = supporting_fact_dict[unique_id][start:end]
-        #print("$: {} | {} | {} | {}".format(torch.cuda.memory_allocated(device=0), torch.cuda.memory_allocated(device=1), torch.cuda.memory_cached(device=0), torch.cuda.memory_cached(device=1)))
+                answer_dict[unique_id] = answer
+
+                #print("$: {} | {} | {} | {}".format(torch.cuda.memory_allocated(device=0), torch.cuda.memory_allocated(device=1), torch.cuda.memory_cached(device=0), torch.cuda.memory_cached(device=1)))
     #import pickle
     #pickle.dump(sp_logits_dict, open("sp_logits_dict.pkl", "wb"))
     if config.integrate:
