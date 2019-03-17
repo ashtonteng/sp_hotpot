@@ -281,8 +281,6 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
                     cur_sp_pred.append(sp)
             if len(cur_qa_sp_pred) == 0:  # if none of the sentences made the cut, pick the max score one
                 cur_qa_sp_pred = [max_sp]
-            if len(cur_sp_pred) == 0: # if none of the sentences made the cut, pick the max score one
-                cur_sp_pred = [max_sp]
             #sp_batch_logits_dict[cur_id] = cur_sp_pred_logits ###
             qa_sp_batch_dict[cur_id] = cur_qa_sp_pred
             sp_batch_dict[cur_id] = cur_sp_pred
@@ -309,7 +307,7 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
             segment_ids = segment_ids.to(device2)
             yns = yns.to(device2)
             batch_start_logits, batch_end_logits, yes_no_span = qa_model(input_ids, segment_ids, input_mask)
-            yes_no_list = yes_no_span[i].detach().cpu().tolist()
+            yes_no_list = yes_no_span.detach().cpu().tolist()
             for i, example_index in enumerate(example_index):
                 start_logits = batch_start_logits[i].detach().cpu().tolist()
                 end_logits = batch_end_logits[i].detach().cpu().tolist()
@@ -330,7 +328,7 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
     #import pickle
     #pickle.dump(sp_logits_dict, open("sp_logits_dict.pkl", "wb"))
     if config.integrate:
-        prediction = {'answer': answer_dict, 'sp': qa_sp_dict}
+        prediction = {'answer': answer_dict, 'sp': sp_dict}
     else:
         prediction = {'sp': sp_dict}
     with open(prediction_file, 'w') as f:

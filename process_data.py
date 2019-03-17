@@ -215,7 +215,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length=384,
                 break
             start_offset += min(length, doc_stride)
 
-        for (doc_span_index, doc_span) in enumerate(doc_spans):
+        for (doc_span_index, doc_span) in enumerate([doc_spans[0]]):
             tokens = []
             token_to_orig_map = {}
             token_is_max_context = {}
