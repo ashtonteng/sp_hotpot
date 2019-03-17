@@ -322,7 +322,7 @@ def predict(data_source, sp_model, eval_file, config, prediction_file, qa_model=
                 else:
                     start = max(enumerate(start_logits), key=operator.itemgetter(1))[0]
                     end = max(enumerate(end_logits), key=operator.itemgetter(1))[0]
-                    answer = supporting_fact_dict[unique_id][start:end]
+                    answer = " ".join(supporting_fact_dict[unique_id].split()[start:end])
                 # TODO double check start and end
                 answer_dict[unique_id] = answer
     #import pickle
