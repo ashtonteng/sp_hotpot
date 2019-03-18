@@ -89,6 +89,7 @@ def eval(prediction_file, gold_file):
     metrics = {'em': 0, 'f1': 0, 'prec': 0, 'recall': 0,
         'sp_em': 0, 'sp_f1': 0, 'sp_prec': 0, 'sp_recall': 0,
         'joint_em': 0, 'joint_f1': 0, 'joint_prec': 0, 'joint_recall': 0}
+    count =0
     for dp in gold:
         cur_id = dp['_id']
         can_eval_joint = True
@@ -122,6 +123,7 @@ def eval(prediction_file, gold_file):
     N = len(gold)
     for k in metrics.keys():
         metrics[k] /= N
+        #metrics[k] /= N
 
     print(metrics)
 
